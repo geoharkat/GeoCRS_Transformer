@@ -764,7 +764,8 @@ function updateBatchOverlapBanner() {
     const outC = CRS_DB.find(c => c.code === parseInt($('b-out-crs')?.value));
     const b    = $('b-overlap-banner');
     if (!b) return;
-    if (!inC?.bbox_w || !outC?.bbox_w) { b.className='overlap-banner overlap-warn'; b.innerHTML='⚠️ Extent unknown'; return; }
+    if (!inC || !outC || inC.bbox_w === undefined || outC.bbox_w === undefined
+    || isNaN(inC.bbox_w) || isNaN(outC.bbox_w)) { b.className='overlap-banner overlap-warn'; b.innerHTML='⚠️ Extent unknown'; return; }
     const ok = bboxOverlap(inC, outC);
     if (ok) { b.className='overlap-banner overlap-ok'; b.innerHTML='✅ Shared extent'; }
     else    { b.className='overlap-banner overlap-bad'; b.innerHTML='❌ No overlap — results may be invalid'; }
