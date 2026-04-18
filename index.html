@@ -3,11 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GeoCRS Transformer | Ismail Harkat</title>
-    <meta name="description" content="Transform single or batch coordinates between any EPSG system. Supports DD, DMS, DMD, Grad, and unit conversions. 100% client-side.">
+    <title>GeoCRS Transformer · Map & BBOX · Ismail Harkat</title>
+    <meta name="description" content="Transform coordinates with interactive map, bounding-box validation, and batch Excel export.">
     <meta name="author" content="Ismail Harkat">
-    <meta name="theme-color" content="#0a0c13">
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0c13'/%3E%3Cpath d='M32 8l-4 20h8L32 8zm-8 28l-12 4 12 4v-8zm16 0v8l12-4-12-4z' fill='%2300d4aa'/%3E%3C/svg%3E">
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
@@ -15,763 +13,1057 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <style>
-        :root{--bg:#0a0c13;--card:rgba(16,19,30,.82);--border:rgba(255,255,255,.07);--accent:#00d4aa;--accent-dim:#009e7e;--accent-glow:rgba(0,212,170,.12);--text:#e2e8f0;--muted:#6b7a94;--success:#10b981;--danger:#f05252;--warn:#f5a623}
-        *,*::before,*::after{box-sizing:border-box}
-        body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
-        .bg-blob{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(100px);opacity:.45}
-        .blob-1{width:600px;height:600px;top:-180px;left:-120px;background:radial-gradient(circle,rgba(0,212,170,.12),transparent 70%);animation:bf 22s ease-in-out infinite}
-        .blob-2{width:500px;height:500px;bottom:-100px;right:-100px;background:radial-gradient(circle,rgba(0,130,255,.08),transparent 70%);animation:bf 26s ease-in-out infinite reverse}
-        @keyframes bf{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-20px) scale(1.06)}66%{transform:translate(-20px,25px) scale(.95)}}
-        .card{background:var(--card);backdrop-filter:blur(18px);border:1px solid var(--border);border-radius:18px;padding:28px;position:relative;z-index:1;transition:border-color .3s,box-shadow .3s}
-        .card:hover{border-color:rgba(0,212,170,.18);box-shadow:0 0 30px rgba(0,212,170,.05)}
-        .card-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);margin-bottom:18px;display:flex;align-items:center;gap:8px}
-        select,input[type="text"],input[type="number"]{background:rgba(6,8,16,.7);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);padding:9px 14px;font-family:inherit;font-size:14px;width:100%;transition:border-color .25s,box-shadow .25s;-webkit-appearance:none;appearance:none}
-        select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7a94'%3E%3Cpath d='M6 8.5L1 3.5h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
-        select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
-        .btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:#0a0c13;font-weight:700;font-size:15px;border:none;border-radius:12px;padding:14px 32px;cursor:pointer;transition:transform .15s,box-shadow .3s,opacity .3s;box-shadow:0 4px 20px rgba(0,212,170,.25);width:100%}
-        .btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 28px rgba(0,212,170,.35)}
-        .btn-primary:active:not(:disabled){transform:translateY(0)}
-        .btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
-        .btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.06);color:var(--text);font-weight:600;font-size:14px;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 28px;cursor:pointer;transition:all .2s;width:100%}
-        .btn-secondary:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18)}
-        .tab-btn{padding:10px 24px;font-weight:600;font-size:14px;border-radius:10px;cursor:pointer;background:transparent;color:var(--muted);border:1px solid transparent;transition:all .2s}
-        .tab-btn.active{background:rgba(0,212,170,.1);color:var(--accent);border-color:rgba(0,212,170,.2)}
-        .tab-btn:hover:not(.active){color:var(--text)}
-        .crs-details{font-size:11px;color:var(--muted);margin-top:6px;min-height:32px}
-        .crs-details b{color:var(--text);font-weight:600}
-        .swap-btn{width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;border:none;box-shadow:0 4px 15px rgba(0,212,170,.3);transition:transform .2s, box-shadow .2s; z-index:2}
-        .swap-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,212,170,.4)}
-        #toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px}
-        .toast{display:flex;align-items:center;gap:10px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;min-width:280px;backdrop-filter:blur(12px);border:1px solid var(--border);transform:translateX(120%);transition:transform .35s cubic-bezier(.22,1,.36,1),opacity .3s;box-shadow:0 8px 30px rgba(0,0,0,.35)}
-        .toast-show{transform:translateX(0)}.toast-hide{opacity:0;transform:translateX(60px)}
-        .toast-success{background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(16,185,129,.2)}
-        .toast-error{background:rgba(240,82,82,.15);color:#fca5a5;border-color:rgba(240,82,82,.2)}
-        .toast-info{background:rgba(0,212,170,.12);color:#5eead4;border-color:rgba(0,212,170,.18)}
-        /* FIX: !important ensures this wins over .loader-wrap display:flex */
-        .section-hidden{display:none!important}
-        .section-reveal{animation:ru .5s cubic-bezier(.22,1,.36,1) both}
-        @keyframes ru{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-        .loader-wrap{min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:1;position:relative}
-        .spinner{width:42px;height:42px;border:3px solid rgba(0,212,170,.15);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        .err-panel{max-width:620px;padding:26px;border-radius:16px;background:rgba(240,82,82,.08);border:1px solid rgba(240,82,82,.2);color:#fecaca;font-size:14px;line-height:1.6}
-        .err-panel code{background:rgba(0,0,0,.3);padding:2px 8px;border-radius:5px;color:#fbbf24;font-size:13px}
-        .err-panel h3{color:#fca5a5;font-size:16px;font-weight:700;margin:0 0 10px}
-        .err-panel .option-block{background:rgba(0,0,0,.2);border-radius:10px;padding:14px;margin-bottom:12px;border-left:3px solid var(--accent)}
-        .err-panel .option-block h4{margin:0 0 6px;color:var(--accent);font-size:14px}
-        .err-panel .option-block p{margin:4px 0}
-        .badge-count{display:inline-block;padding:2px 10px;border-radius:20px;background:rgba(0,212,170,.12);color:var(--accent);font-size:11px;font-weight:700;margin-left:6px}
-        ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
-        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+        :root {
+            --bg: #0a0c13; --card: rgba(16,19,30,.85); --border: rgba(255,255,255,.07);
+            --accent: #00d4aa; --accent-dim: #009e7e; --accent-glow: rgba(0,212,170,.12);
+            --text: #e2e8f0; --muted: #6b7a94; --success: #10b981; --danger: #f05252; --warn: #f5a623;
+        }
+        * { box-sizing: border-box; }
+        body { margin:0; background:var(--bg); color:var(--text); font-family:'Space Grotesk',sans-serif; min-height:100vh; overflow-x:hidden; }
+        .bg-blob { position:fixed; border-radius:50%; pointer-events:none; z-index:0; filter:blur(100px); opacity:.45; }
+        .blob-1 { width:600px;height:600px;top:-180px;left:-120px;background:radial-gradient(circle,rgba(0,212,170,.12),transparent 70%);animation:bf 22s infinite; }
+        .blob-2 { width:500px;height:500px;bottom:-100px;right:-100px;background:radial-gradient(circle,rgba(0,130,255,.08),transparent 70%);animation:bf 26s infinite reverse; }
+        @keyframes bf { 0%,100%{transform:translate(0,0) scale(1)} 33%{transform:translate(30px,-20px) scale(1.06)} 66%{transform:translate(-20px,25px) scale(.95)} }
+        @keyframes spin { to{transform:rotate(360deg)} }
+
+        .card { background:var(--card); backdrop-filter:blur(18px); border:1px solid var(--border); border-radius:18px; padding:22px; position:relative; z-index:1; }
+        .card-title { font-size:13px; font-weight:600; text-transform:uppercase; letter-spacing:1.2px; color:var(--accent); margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+        label.field-label { font-size:12px; color:var(--muted); display:block; margin-bottom:4px; }
+        select, input[type="text"], input[type="number"] { background:rgba(6,8,16,.7); border:1px solid rgba(255,255,255,.1); border-radius:10px; color:var(--text); padding:9px 14px; font-family:inherit; font-size:14px; width:100%; transition:border-color .2s; }
+        select:focus, input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,212,170,.12); }
+        input[readonly] { color:var(--accent); font-weight:600; cursor:default; }
+        .btn-primary { background:linear-gradient(135deg,var(--accent),var(--accent-dim)); color:#0a0c13; font-weight:700; border:none; border-radius:12px; padding:13px 28px; cursor:pointer; transition:all .2s; box-shadow:0 4px 20px rgba(0,212,170,.25); width:100%; font-family:inherit; font-size:14px; }
+        .btn-primary:hover:not(:disabled) { transform:translateY(-1px); box-shadow:0 6px 28px rgba(0,212,170,.35); }
+        .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+        .btn-secondary { background:rgba(255,255,255,.06); color:var(--text); font-weight:600; border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:11px 24px; cursor:pointer; width:100%; font-family:inherit; font-size:14px; transition:background .2s; }
+        .btn-secondary:hover { background:rgba(255,255,255,.1); }
+        .btn-icon { width:36px;height:36px;border-radius:8px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0; }
+        .btn-icon:hover { background:rgba(0,212,170,.1); color:var(--accent); border-color:rgba(0,212,170,.2); }
+        .tab-btn { padding:10px 24px; font-weight:600; border-radius:10px; cursor:pointer; background:transparent; color:var(--muted); border:1px solid transparent; font-family:inherit; font-size:14px; transition:all .2s; }
+        .tab-btn.active { background:rgba(0,212,170,.1); color:var(--accent); border-color:rgba(0,212,170,.2); }
+        .crs-details { font-size:11px; color:var(--muted); margin-top:6px; min-height:16px; line-height:1.5; }
+        .map-container { height:240px; border-radius:14px; overflow:hidden; border:1px solid var(--border); }
+        .badge-count { padding:2px 10px; border-radius:20px; background:rgba(0,212,170,.12); color:var(--accent); font-size:13px; font-weight:700; }
+        .overlap-banner { padding:7px 12px; border-radius:8px; font-size:12px; font-weight:600; }
+        .overlap-ok  { background:rgba(16,185,129,.1);  color:#6ee7b7; }
+        .overlap-warn{ background:rgba(245,165,36,.1);  color:#fcd34d; }
+        .overlap-bad { background:rgba(240,82,82,.1);   color:#fca5a5; }
+        .divider-label { display:flex;align-items:center;gap:8px;color:var(--muted);font-size:11px;font-weight:700;letter-spacing:.8px;margin:12px 0; }
+        .divider-label span.line { flex:1;height:1px;background:var(--border); }
+        .hidden { display:none!important; }
+        .summary-stat { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--border); font-size:13px; }
+        .summary-stat:last-child { border-bottom:none; }
+
+        /* Toast */
+        .toast { display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:12px;font-size:13px;font-weight:600;min-width:220px;max-width:360px;backdrop-filter:blur(18px);border:1px solid rgba(255,255,255,.1);transform:translateX(120%);transition:transform .3s cubic-bezier(.34,1.56,.64,1); }
+        .toast-show { transform:translateX(0); }
+        .toast-hide { transform:translateX(120%); transition:transform .25s ease-in; }
+        .toast-success { background:rgba(16,185,129,.15); color:#6ee7b7; border-color:rgba(16,185,129,.3); }
+        .toast-error   { background:rgba(240,82,82,.15);  color:#fca5a5; border-color:rgba(240,82,82,.3); }
+        .toast-info    { background:rgba(0,212,170,.12);  color:var(--accent); border-color:rgba(0,212,170,.25); }
+
+        /* Pulse marker */
+        .pulse-marker { width:14px;height:14px;border-radius:50%;background:var(--accent);border:2px solid #fff;animation:pulse 2s infinite; }
+        @keyframes pulse { 0%{box-shadow:0 0 0 0 rgba(0,212,170,.5)} 70%{box-shadow:0 0 0 12px rgba(0,212,170,0)} 100%{box-shadow:0 0 0 0 rgba(0,212,170,0)} }
+
+        /* Drop zone */
+        #drop-zone { border:2px dashed rgba(255,255,255,.14); border-radius:14px; padding:28px 20px; text-align:center; cursor:pointer; transition:border-color .2s; }
+        #drop-zone:hover { border-color:var(--accent); }
+
+        /* Swap button */
+        .swap-btn { width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:#0a0c13;display:flex;align-items:center;justify-content:center;font-size:18px;cursor:pointer;border:none;transition:transform .2s;box-shadow:0 4px 16px rgba(0,212,170,.3); }
+        .swap-btn:hover { transform:rotate(180deg); }
+
+        /* Spinner */
+        .spinner { width:42px;height:42px;border:3px solid rgba(0,212,170,.15);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite; }
+
+        /* Leaflet dark overrides */
+        .leaflet-container { background:#111520; }
     </style>
 </head>
 <body>
-<div class="blob-1 bg-blob"></div><div class="blob-2 bg-blob"></div>
-<div id="toast-container" aria-live="polite"></div>
+<div class="blob-1 bg-blob"></div>
+<div class="blob-2 bg-blob"></div>
+<div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;"></div>
 
-<header class="relative z-10 pt-10 pb-4 text-center">
-    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">GeoCRS Transformer <span id="crs-count" class="badge-count"></span></h1>
-    <p class="mt-2 text-sm" style="color:var(--muted)">Reproject coordinates globally &middot; DMS, DD, DMD, Grad &middot; Unit Conversions</p>
-    <div class="text-xs mt-2" style="color:var(--muted)"><i class="fas fa-user-circle mr-1"></i> Built by <a href="mailto:geoharkat@gmail.com" style="color:var(--accent);font-weight:600">Ismail Harkat</a> &middot; 100% Client-Side</div>
+<header class="relative z-10 pt-8 pb-4 text-center">
+    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">
+        🌍 GeoCRS Transformer <span id="crs-count" class="badge-count"></span>
+    </h1>
+    <p class="mt-2 text-sm" style="color:var(--muted)">Interactive map · Bounding-box validation · Batch Excel export · <span style="color:var(--accent)">Ismail Harkat</span></p>
 </header>
 
-<!-- LOADING STATE -->
-<div id="loading" class="loader-wrap">
+<!-- Loading -->
+<div id="loading" class="flex flex-col items-center justify-center" style="min-height:60vh">
     <div class="spinner"></div>
-    <div style="color:var(--muted);font-size:14px">Loading CRS database...</div>
+    <div style="color:var(--muted);margin-top:14px;font-size:14px">Loading CRS database…</div>
 </div>
 
-<!-- MAIN APP -->
-<main id="app" class="relative z-10 max-w-5xl mx-auto px-4 pb-16 section-hidden">
-    <!-- Mode Switcher -->
+<!-- Main App -->
+<main id="app" class="relative z-10 max-w-6xl mx-auto px-4 pb-16 hidden">
+    <!-- Tabs -->
     <div class="flex justify-center gap-3 mb-6">
-        <button class="tab-btn active" id="tab-manual" onclick="switchMode('manual')"><i class="fas fa-keyboard mr-2"></i>Manual</button>
-        <button class="tab-btn" id="tab-batch" onclick="switchMode('batch')"><i class="fas fa-file-csv mr-2"></i>Batch File</button>
+        <button class="tab-btn active" id="tab-manual" onclick="switchMode('manual')">
+            <i class="fas fa-map-marked-alt mr-2"></i>Manual + Map
+        </button>
+        <button class="tab-btn" id="tab-batch" onclick="switchMode('batch')">
+            <i class="fas fa-file-excel mr-2"></i>Batch &amp; Excel
+        </button>
     </div>
 
-    <!-- MANUAL MODE -->
-    <div id="mode-manual" class="section-reveal">
-        <div class="flex flex-col md:flex-row items-center gap-4 md:gap-2">
-            <!-- Input CRS -->
-            <div class="card flex-1 w-full md:w-auto">
-                <div class="card-title"><i class="fas fa-sign-in-alt"></i> Input System</div>
-                <div class="space-y-3">
-                    <select id="m-in-region" onchange="onRegionChange('m-in')"><option value="">All Regions</option></select>
-                    <select id="m-in-country" onchange="filterCRS('m-in')"><option value="">All Countries</option></select>
-                    <select id="m-in-crs" onchange="updateCRSDetails('m-in')"></select>
-                    <div id="m-in-details" class="crs-details"></div>
+    <!-- ══════════════════ MANUAL MODE ══════════════════ -->
+    <div id="mode-manual">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
 
+            <!-- Input CRS Card -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-location-arrow"></i> Input CRS</div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="field-label">Region</label>
+                        <select id="m-in-region" onchange="onRegionChange('m-in')"></select>
+                    </div>
+                    <div>
+                        <label class="field-label">Country</label>
+                        <select id="m-in-country" onchange="filterManualCRS('m-in')"></select>
+                    </div>
+                    <div>
+                        <label class="field-label">CRS</label>
+                        <select id="m-in-crs" onchange="onInCRSChange()"></select>
+                        <div id="m-in-details" class="crs-details"></div>
+                    </div>
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="text-xs font-medium" style="color:var(--muted)">X / Lon / Easting</label>
-                            <input type="text" id="m-in-x" placeholder="e.g. -105.45 or 500000">
+                            <label class="field-label">X / Longitude / Easting</label>
+                            <input type="text" id="m-x" placeholder="e.g. 3.0587">
                         </div>
                         <div>
-                            <label class="text-xs font-medium" style="color:var(--muted)">Y / Lat / Northing</label>
-                            <input type="text" id="m-in-y" placeholder="e.g. 40.30 or 4500000">
+                            <label class="field-label">Y / Latitude / Northing</label>
+                            <input type="text" id="m-y" placeholder="e.g. 36.7372">
                         </div>
-                    </div>
-                    <div id="m-in-format-section">
-                        <label class="text-xs font-medium" style="color:var(--muted)">Input Angular Format</label>
-                        <select id="m-in-format">
-                            <option value="AUTO">Auto-Detect</option>
-                            <option value="DD">Decimal Degrees (DD)</option>
-                            <option value="DMS">Degrees Minutes Seconds (DMS)</option>
-                            <option value="DMD">Degrees Decimal Minutes (DMD)</option>
-                            <option value="GRAD">Gradians (grad)</option>
-                        </select>
                     </div>
                 </div>
             </div>
 
-            <!-- Swap Button -->
-            <div class="flex-shrink-0 my-2 md:my-0">
-                <button class="swap-btn" onclick="swapSystems()" title="Swap Input/Output"><i class="fas fa-exchange-alt"></i></button>
-            </div>
+            <!-- Output CRS Card -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-crosshairs"></i> Output CRS</div>
 
-            <!-- Output CRS -->
-            <div class="card flex-1 w-full md:w-auto">
-                <div class="card-title"><i class="fas fa-sign-out-alt"></i> Output System</div>
+                <!-- Swap button -->
+                <div class="flex justify-center mb-4">
+                    <button class="swap-btn" onclick="swapCRS()" title="Swap Input ↔ Output">
+                        <i class="fas fa-exchange-alt"></i>
+                    </button>
+                </div>
+
                 <div class="space-y-3">
-                    <select id="m-out-region" onchange="onRegionChange('m-out')"><option value="">All Regions</option></select>
-                    <select id="m-out-country" onchange="filterCRS('m-out')"><option value="">All Countries</option></select>
-                    <select id="m-out-crs" onchange="updateCRSDetails('m-out')"></select>
-                    <div id="m-out-details" class="crs-details"></div>
-
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="text-xs font-medium" style="color:var(--muted)">X / Lon / Easting</label>
-                            <input type="text" id="m-out-x" readonly style="background:rgba(0,212,170,.05);border-color:rgba(0,212,170,.2);cursor:text">
-                        </div>
-                        <div>
-                            <label class="text-xs font-medium" style="color:var(--muted)">Y / Lat / Northing</label>
-                            <input type="text" id="m-out-y" readonly style="background:rgba(0,212,170,.05);border-color:rgba(0,212,170,.2);cursor:text">
-                        </div>
+                    <div>
+                        <label class="field-label">Region</label>
+                        <select id="m-out-region" onchange="onRegionChange('m-out')"></select>
                     </div>
-                    <div id="m-out-format-section">
-                        <label class="text-xs font-medium" style="color:var(--muted)">Output Format / Units</label>
+                    <div>
+                        <label class="field-label">Country</label>
+                        <select id="m-out-country" onchange="filterManualCRS('m-out')"></select>
+                    </div>
+                    <div>
+                        <label class="field-label">
+                            CRS
+                            <label style="float:right;font-weight:normal">
+                                <input type="checkbox" id="m-compat-filter" checked onchange="filterManualOutputByOverlap()">
+                                🔗 Compatible only
+                            </label>
+                        </label>
+                        <select id="m-out-crs" onchange="onOutCRSChange()"></select>
+                        <div id="m-out-details" class="crs-details"></div>
+                    </div>
+                    <div>
+                        <label class="field-label">Output Format</label>
                         <select id="m-out-format"></select>
                     </div>
+                    <div id="m-overlap-banner" class="overlap-banner overlap-warn">Select CRS to check overlap</div>
+                    <button class="btn-primary mt-2" onclick="transformManual()">
+                        <i class="fas fa-play mr-2"></i>Transform
+                    </button>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="field-label">Output X</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="m-out-x" readonly placeholder="—">
+                                <button class="btn-icon" onclick="copyField('m-out-x')" title="Copy"><i class="fas fa-copy fa-xs"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="field-label">Output Y</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="m-out-y" readonly placeholder="—">
+                                <button class="btn-icon" onclick="copyField('m-out-y')" title="Copy"><i class="fas fa-copy fa-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
-        </div>
 
-        <div class="mt-6">
-            <button class="btn-primary" onclick="transformManual()"><i class="fas fa-bolt"></i> Transform Coordinate</button>
+            <!-- Map Card -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-map"></i> Extent Map</div>
+                <div class="map-container"><div id="manual-map" style="height:100%;width:100%"></div></div>
+                <div class="flex justify-between text-xs mt-2" style="color:var(--muted)">
+                    <span><span style="color:#00d4aa">■</span> Input extent</span>
+                    <span><span style="color:#f5a623">■</span> Output extent</span>
+                    <span><span style="color:rgba(0,212,170,.5)">■</span> Overlap</span>
+                </div>
+                <div id="m-point-info" class="text-xs mt-3" style="color:var(--muted)">Transform a point to see it on the map.</div>
+            </div>
         </div>
     </div>
 
-    <!-- BATCH MODE -->
-    <div id="mode-batch" class="section-hidden">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <!-- File Upload -->
+    <!-- ══════════════════ BATCH MODE ══════════════════ -->
+    <div id="mode-batch" class="hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-5">
+
+            <!-- Upload Card -->
             <div class="card">
-                <div class="card-title"><i class="fas fa-upload"></i> 1. Input File</div>
-                <div id="drop-zone" style="border:2px dashed rgba(255,255,255,.14);border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer" onclick="document.getElementById('file-input').click()">
+                <div class="card-title"><i class="fas fa-upload"></i> 1. Upload CSV / Excel</div>
+                <div id="drop-zone" onclick="document.getElementById('file-input').click()">
                     <i class="fas fa-file-csv text-3xl mb-2" style="color:var(--accent);opacity:.7"></i>
-                    <p class="text-sm font-semibold">Drop CSV / Excel here</p>
+                    <p class="text-sm mt-2" style="color:var(--muted)">Drop file here or click to upload</p>
+                    <p class="text-xs mt-1" style="color:var(--muted);opacity:.6">.csv · .xlsx · .xls</p>
                 </div>
                 <input type="file" id="file-input" accept=".csv,.xlsx,.xls" class="hidden">
-                <div id="file-info" class="mt-3 text-xs hidden" style="color:var(--muted)"></div>
+                <div id="file-info" class="mt-3 text-xs hidden" style="color:var(--accent)"></div>
+                <div class="grid grid-cols-2 gap-3 mt-4">
+                    <div>
+                        <label class="field-label">X Column</label>
+                        <select id="b-x-col"></select>
+                    </div>
+                    <div>
+                        <label class="field-label">Y Column</label>
+                        <select id="b-y-col"></select>
+                    </div>
+                </div>
+                <div class="map-container mt-4"><div id="batch-map" style="height:100%;width:100%"></div></div>
+                <div class="flex justify-between text-xs mt-2" style="color:var(--muted)">
+                    <span><span style="color:#00d4aa">■</span> Input</span>
+                    <span><span style="color:#f5a623">■</span> Output</span>
+                    <span><span style="color:rgba(0,212,170,.5)">■</span> Overlap</span>
+                </div>
             </div>
 
-            <!-- Batch Config -->
+            <!-- Settings Card -->
             <div class="card">
-                <div class="card-title"><i class="fas fa-cogs"></i> 2. Transformation Settings</div>
+                <div class="card-title"><i class="fas fa-cogs"></i> 2. CRS Settings</div>
                 <div class="space-y-3">
-                    <div class="grid grid-cols-2 gap-3">
-                        <div><label class="text-xs font-medium" style="color:var(--muted)">X/Easting Col</label><select id="b-x-col"></select></div>
-                        <div><label class="text-xs font-medium" style="color:var(--muted)">Y/Northing Col</label><select id="b-y-col"></select></div>
-                    </div>
-
-                    <div style="display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--muted);font-size:11px;font-weight:700">
-                        <span style="flex:1;height:1px;background:var(--border)"></span>INPUT CRS<span style="flex:1;height:1px;background:var(--border)"></span>
-                    </div>
-
-                    <select id="b-in-mode" onchange="toggleBatchCRSMode()">
-                        <option value="global">Global System (All points same)</option>
-                        <option value="column">From Column (Per point)</option>
-                    </select>
-                    <select id="b-in-crs" class="hidden"></select>
-                    <select id="b-in-epsg-col" class="hidden"></select>
-
-                    <div style="display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--muted);font-size:11px;font-weight:700">
-                        <span style="flex:1;height:1px;background:var(--border)"></span>OUTPUT CRS<span style="flex:1;height:1px;background:var(--border)"></span>
-                    </div>
-                    <select id="b-out-crs"></select>
-
+                    <div class="divider-label"><span class="line"></span>INPUT CRS<span class="line"></span></div>
                     <div>
-                        <label class="text-xs font-medium" style="color:var(--muted)">Output Format/Units</label>
+                        <label class="field-label">Mode</label>
+                        <select id="b-in-mode" onchange="toggleBatchCRSMode()">
+                            <option value="global">Global (all rows same CRS)</option>
+                            <option value="column">Per-row (from EPSG column)</option>
+                        </select>
+                    </div>
+                    <div id="batch-global-input" class="space-y-2">
+                        <select id="b-in-region" onchange="onBatchRegionChange('in')"></select>
+                        <select id="b-in-country" onchange="filterBatchCRS('in')"></select>
+                        <select id="b-in-crs" onchange="onBatchInCRSChange()"></select>
+                        <div id="b-in-details" class="crs-details"></div>
+                    </div>
+                    <div id="b-epsg-col-wrap" class="hidden">
+                        <label class="field-label">EPSG Column</label>
+                        <select id="b-in-epsg-col"></select>
+                    </div>
+
+                    <div class="divider-label"><span class="line"></span>OUTPUT CRS<span class="line"></span></div>
+                    <select id="b-out-region" onchange="onBatchRegionChange('out')"></select>
+                    <select id="b-out-country" onchange="filterBatchCRS('out')" class="mt-2"></select>
+                    <div class="flex items-center gap-2 mt-2">
+                        <select id="b-out-crs" onchange="onBatchOutCRSChange()" style="flex:1"></select>
+                        <label class="flex items-center gap-1 text-xs" style="white-space:nowrap">
+                            <input type="checkbox" id="b-compat-filter" checked onchange="filterBatchOutputByOverlap()">
+                            🔗 Compat
+                        </label>
+                    </div>
+                    <div id="b-out-details" class="crs-details"></div>
+                    <div id="b-overlap-banner" class="overlap-banner overlap-warn">Select CRS to check overlap</div>
+                    <div>
+                        <label class="field-label">Output Format / Units</label>
                         <select id="b-out-format"></select>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <div class="mt-5">
-            <button class="btn-primary" onclick="transformBatch()" id="btn-batch"><i class="fas fa-play"></i> Transform & Prepare Download</button>
-            <button class="btn-secondary mt-3 hidden" id="btn-download" onclick="downloadBatch()"><i class="fas fa-download"></i> Download Transformed CSV</button>
+            <!-- Summary Card -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-chart-bar"></i> 3. Run &amp; Download</div>
+                <div id="batch-summary-placeholder" class="text-sm" style="color:var(--muted)">
+                    Load a file and configure CRS settings, then click Transform.
+                </div>
+                <div id="batch-summary" class="hidden">
+                    <div class="summary-stat"><span>Total Rows</span><span id="bs-total">0</span></div>
+                    <div class="summary-stat"><span style="color:var(--success)">✅ Success</span><span id="bs-success">0</span></div>
+                    <div class="summary-stat"><span style="color:var(--warn)">⚠️ Out of Range</span><span id="bs-range">0</span></div>
+                    <div class="summary-stat"><span style="color:var(--danger)">❌ Error</span><span id="bs-error">0</span></div>
+                    <div id="bs-dist" class="mt-3 text-xs" style="color:var(--muted)"></div>
+                </div>
+                <div class="mt-4 space-y-2">
+                    <button class="btn-primary" onclick="transformBatch()" id="btn-batch">
+                        <i class="fas fa-play mr-2"></i>Transform
+                    </button>
+                    <button class="btn-secondary hidden" id="btn-download-csv" onclick="downloadBatchCSV()">
+                        <i class="fas fa-download mr-2"></i>Download CSV
+                    </button>
+                    <button class="btn-secondary hidden" id="btn-download-xlsx" onclick="downloadBatchExcel()">
+                        <i class="fas fa-file-excel mr-2"></i>Download Excel (XLSX)
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </main>
 
-<!-- Load database via script tag — works from file:// unlike fetch() -->
+<!-- Optional external CRS database -->
 <script src="crs_database.js" onerror="window.__dbScriptFailed=true"></script>
 
 <script>
-const AUTHOR = { name: 'Ismail Harkat', email: 'geoharkat@gmail.com' };
+/* ═══════════════════════════════════════════════════
+   HELPER
+═══════════════════════════════════════════════════ */
 const $ = id => document.getElementById(id);
-const DB_URL = 'crs_database.json';
 
-/* ═══════════════════ STATE ═══════════════════ */
-let CRS_DB = [];
-let REGION_MAP = {};
-let REGIONS = [];
+/* ═══════════════════════════════════════════════════
+   GLOBALS
+═══════════════════════════════════════════════════ */
+const AUTHOR = { name: 'Ismail Harkat', email: 'geoharkat@gmail.com' };
+let CRS_DB = [], REGION_MAP = {}, REGIONS = [];
+let manualMap, batchMap;
+let manualInRect, manualOutRect, manualOverlapRect, manualMarker;
+let batchInRect,  batchOutRect,  batchOverlapRect;
+let batchData = null, transformedData = null;
 
-/* ═══════════════════ BOOTSTRAP ═══════════════════ */
+/* ═══════════════════════════════════════════════════
+   FALLBACK CRS DATABASE (used if crs_database.js/.json missing)
+═══════════════════════════════════════════════════ */
+const FALLBACK_DB = {
+    fields: ['code','name','region','country','datum','type','unit','proj','bbox_w','bbox_s','bbox_e','bbox_n'],
+    data: [
+        [4326,'WGS 84','World','Global','WGS84','Geographic','degree','+proj=longlat +datum=WGS84 +no_defs',-180,-90,180,90],
+        [3857,'WGS 84 / Pseudo-Mercator','World','Global','WGS84','Projected','m','+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs',-180,-85.06,180,85.06],
+        [4258,'ETRS89','Europe','Europe','ETRS89','Geographic','degree','+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs',-16.1,32.88,40.18,84.73],
+        [2154,'RGF93 / Lambert-93','Europe','France','RGF93','Projected','m','+proj=lcc +lat_1=49 +lat_2=44 +lat_0=46.5 +lon_0=3 +x_0=700000 +y_0=6600000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',-9.86,41.15,10.38,51.56],
+        [27700,'OSGB 1936 / British National Grid','Europe','UK','OSGB36','Projected','m','+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m +no_defs',-7.56,49.96,1.78,60.84],
+        [25832,'ETRS89 / UTM zone 32N','Europe','Europe','ETRS89','Projected','m','+proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',6,38,18,84],
+        [4269,'NAD83','North America','USA','NAD83','Geographic','degree','+proj=longlat +datum=NAD83 +no_defs',-180,15.56,-47.74,90],
+        [26917,'NAD83 / UTM zone 17N','North America','USA','NAD83','Projected','m','+proj=utm +zone=17 +datum=NAD83 +units=m +no_defs',-84,0,-78,84],
+        [4283,'GDA94','Oceania','Australia','GDA94','Geographic','degree','+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs',112.85,-43.7,153.69,-9.86],
+        [28355,'GDA94 / MGA zone 55','Oceania','Australia','GDA94','Projected','m','+proj=utm +zone=55 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',144,-43.7,150,-9.86],
+        [4674,'SIRGAS 2000','South America','Brazil','SIRGAS2000','Geographic','degree','+proj=longlat +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +no_defs',-122.19,-59.87,-25.28,32.72],
+        [31983,'SIRGAS 2000 / UTM zone 23S','South America','Brazil','SIRGAS2000','Projected','m','+proj=utm +zone=23 +south +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs',-48,-33.5,-42,5.27],
+        [4301,'Tokyo','Asia','Japan','Tokyo','Geographic','degree','+proj=longlat +ellps=bessel +towgs84=-146.414,507.337,680.507,0,0,0,0 +no_defs',122.94,20.53,154.05,45.54],
+        [32630,'WGS 84 / UTM zone 30N','World','Global','WGS84','Projected','m','+proj=utm +zone=30 +datum=WGS84 +units=m +no_defs',-6,0,0,84],
+        [32631,'WGS 84 / UTM zone 31N','World','Global','WGS84','Projected','m','+proj=utm +zone=31 +datum=WGS84 +units=m +no_defs',0,0,6,84],
+        [32632,'WGS 84 / UTM zone 32N','World','Global','WGS84','Projected','m','+proj=utm +zone=32 +datum=WGS84 +units=m +no_defs',6,0,12,84],
+        [32633,'WGS 84 / UTM zone 33N','World','Global','WGS84','Projected','m','+proj=utm +zone=33 +datum=WGS84 +units=m +no_defs',12,0,18,84],
+        [32634,'WGS 84 / UTM zone 34N','World','Global','WGS84','Projected','m','+proj=utm +zone=34 +datum=WGS84 +units=m +no_defs',18,0,24,84],
+        [32637,'WGS 84 / UTM zone 37N','World','Global','WGS84','Projected','m','+proj=utm +zone=37 +datum=WGS84 +units=m +no_defs',36,0,42,84],
+        [32638,'WGS 84 / UTM zone 38N','World','Global','WGS84','Projected','m','+proj=utm +zone=38 +datum=WGS84 +units=m +no_defs',42,0,48,84],
+        // Algeria
+        [4267,'Voirol 1875','Africa','Algeria','Voirol 1875','Geographic','degree','+proj=longlat +a=6378249.2 +b=6356515 +towgs84=-73,-247,227,0,0,0,0 +no_defs',-2.95,18.97,9.1,37.15],
+        [30491,'Voirol 1875 / Nord Algerie','Africa','Algeria','Voirol 1875','Projected','m','+proj=lcc +lat_1=40 +lat_2=36 +lat_0=38 +lon_0=3 +x_0=500000 +y_0=300000 +a=6378249.2 +b=6356515 +towgs84=-73,-247,227,0,0,0,0 +units=m +no_defs',-2.95,32,9.1,37.15],
+        [30492,'Voirol 1875 / Sud Algerie','Africa','Algeria','Voirol 1875','Projected','m','+proj=lcc +lat_1=36 +lat_2=33 +lat_0=34 +lon_0=3 +x_0=500000 +y_0=300000 +a=6378249.2 +b=6356515 +towgs84=-73,-247,227,0,0,0,0 +units=m +no_defs',-2.95,18.97,9.1,34],
+        [4210,'Arc 1960','Africa','Kenya','Arc 1960','Geographic','degree','+proj=longlat +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +no_defs',29.34,-11.75,41.91,5],
+        [21037,'Arc 1960 / UTM zone 37S','Africa','Kenya','Arc 1960','Projected','m','+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',36,-11.75,42,0],
+        [4197,'Moznet','Africa','Mozambique','Moznet','Geographic','degree','+proj=longlat +ellps=WGS84 +towgs84=0,0,0,0,0,0,0 +no_defs',30.21,-26.87,40.9,-10.42],
+    ]
+};
+
+/* ═══════════════════════════════════════════════════
+   BOOTSTRAP
+═══════════════════════════════════════════════════ */
 proj4.defs('EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs');
 proj4.defs('EPSG:3857', '+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs');
 
 async function bootstrap() {
-    // Method 1: <script> tag loaded crs_database.js (works from file://)
-    if (window.CRS_DATABASE) {
-        try {
-            ingestDatabase(window.CRS_DATABASE);
-            console.log('DB loaded via <script> tag — ' + CRS_DB.length + ' systems');
-            return;
-        } catch (err) {
-            console.error('ingestDatabase failed with script data:', err);
-            showLoadError('Error processing database: ' + err.message);
-            return;
-        }
-    }
+    // 1. Try inline script (crs_database.js with window.CRS_DATABASE)
+    if (window.CRS_DATABASE) { ingestDatabase(window.CRS_DATABASE); return; }
 
-    // Method 2: fetch the JSON file (works from http://)
+    // 2. Try fetch (only works with a local server, not file://)
     try {
-        const res = await fetch(DB_URL, { cache: 'no-store' });
-        if (!res.ok) throw new Error('HTTP ' + res.status + ' - ' + res.statusText);
-        const db = await res.json();
-        ingestDatabase(db);
-        console.log('DB loaded via fetch — ' + CRS_DB.length + ' systems');
-        return;
-    } catch (err) {
-        console.warn('fetch() failed:', err.message);
-    }
+        const res = await fetch('crs_database.json');
+        if (res.ok) { const db = await res.json(); ingestDatabase(db); return; }
+    } catch(e) { /* file:// will fail here */ }
 
-    // Method 3: show error panel with manual upload fallback
-    showLoadError();
+    // 3. Fallback to built-in CRS set
+    showToast('External CRS database not found — using built-in dataset (' + FALLBACK_DB.data.length + ' CRS). Serve via a local server for full database.', 'info', 7000);
+    ingestDatabase(FALLBACK_DB);
 }
 
 function ingestDatabase(db) {
-    if (!db || !Array.isArray(db.data) || !db.data.length) {
-        throw new Error('Database has no data array or it is empty.');
-    }
-    const fields = db.fields || ['code','name','region','country','datum','type','unit','proj'];
-    CRS_DB = db.data.map(function(row) {
+    const fields = db.fields || ['code','name','region','country','datum','type','unit','proj','bbox_w','bbox_s','bbox_e','bbox_n'];
+    CRS_DB = db.data.map(row => {
         const obj = {};
-        fields.forEach(function(f, i) { obj[f] = row[i]; });
+        fields.forEach((f, i) => obj[f] = row[i]);
+        // Ensure numeric bbox
+        ['bbox_w','bbox_s','bbox_e','bbox_n'].forEach(k => { if (obj[k] !== undefined) obj[k] = parseFloat(obj[k]); });
+        obj.code = parseInt(obj.code);
         return obj;
     });
+    CRS_DB.forEach(c => { try { proj4.defs('EPSG:' + c.code, c.proj); } catch(e) {} });
 
-    // Register all proj4 defs (silently skip failures)
-    let defFailures = 0;
-    CRS_DB.forEach(function(c) {
-        try { proj4.defs('EPSG:' + c.code, c.proj); }
-        catch(e) { defFailures++; }
-    });
-    if (defFailures) console.warn(defFailures + ' proj4 definitions failed to register (non-fatal)');
-
-    // Build region/country map
+    // Build region map
     REGION_MAP = {};
-    CRS_DB.forEach(function(c) {
+    CRS_DB.forEach(c => {
         if (!REGION_MAP[c.region]) REGION_MAP[c.region] = new Set();
         REGION_MAP[c.region].add(c.country);
     });
-    for (var r in REGION_MAP) REGION_MAP[r] = Array.from(REGION_MAP[r]).sort();
+    for (let r in REGION_MAP) REGION_MAP[r] = Array.from(REGION_MAP[r]).sort();
     REGIONS = Object.keys(REGION_MAP).sort();
 
-    // Hide loader, show app
     $('loading').style.display = 'none';
-    $('app').classList.remove('section-hidden');
-    $('app').classList.add('section-reveal');
-    $('crs-count').textContent = CRS_DB.length + ' systems';
+    $('app').classList.remove('hidden');
+    $('crs-count').textContent = CRS_DB.length + ' CRS';
 
     initUI();
+    initMaps();
 }
 
-function showLoadError(detail) {
-    $('loading').style.display = 'none';
-    $('load-error').classList.remove('section-hidden');
-    if (detail) {
-        var detailEl = document.createElement('p');
-        detailEl.innerHTML = 'Detail: <code>' + detail + '</code>';
-        detailEl.style.marginBottom = '12px';
-        var errPanel = $('load-error').querySelector('.err-panel');
-        errPanel.insertBefore(detailEl, errPanel.firstChild.nextSibling);
-    }
-    // Hook up manual file loader
-    $('manual-db-input').addEventListener('change', function(ev) {
-        var f = ev.target.files[0];
-        if (!f) return;
-        var reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                var db = JSON.parse(e.target.result);
-                if (!db.data || !db.data.length) throw new Error('No data array found');
-                $('load-error').classList.add('section-hidden');
-                ingestDatabase(db);
-                showToast('Database loaded manually (' + db.data.length + ' systems)', 'success');
-            } catch (err) {
-                showToast('Invalid JSON: ' + err.message, 'error');
-            }
-        };
-        reader.readAsText(f);
-    });
-}
-
-/* ═══════════════════ UI INITIALISATION ═══════════════════ */
+/* ═══════════════════════════════════════════════════
+   UI INIT
+═══════════════════════════════════════════════════ */
 function initUI() {
-    ['m-in', 'm-out'].forEach(function(prefix) {
-        var regionSel = $(prefix + '-region');
-        regionSel.innerHTML = '<option value="">All Regions</option>' + REGIONS.map(function(r) { return '<option value="' + r + '">' + r + '</option>'; }).join('');
-        onRegionChange(prefix);
+    const regionOptions = '<option value="">All Regions</option>' + REGIONS.map(r => `<option>${r}</option>`).join('');
+
+    // Manual mode
+    ['m-in', 'm-out'].forEach(pre => {
+        const el = $(pre + '-region');
+        if (!el) return;
+        el.innerHTML = regionOptions;
+        onRegionChange(pre);
     });
+    if ($('m-in-crs'))  { setDefaultCRS('m-in-crs', 4326);  updateCRSDetails('m-in'); }
+    if ($('m-out-crs')) { setDefaultCRS('m-out-crs', 3857);  updateCRSDetails('m-out'); updateOutputFormat('m-out'); }
+    if ($('m-in-crs'))  onInCRSChange();
 
-    populateCRSDropdown('b-in-crs');
-    populateCRSDropdown('b-out-crs');
-    $('b-out-crs').addEventListener('change', updateBatchOutDetails);
-    updateBatchOutDetails();
-    toggleBatchCRSMode(); // initialise visibility (not just on change)
+    // Batch mode
+    ['b-in', 'b-out'].forEach(pre => {
+        const el = $(pre + '-region');
+        if (!el) return;
+        el.innerHTML = regionOptions;
+        onBatchRegionChange(pre === 'b-in' ? 'in' : 'out');
+    });
+    if ($('b-in-crs'))  { setDefaultCRS('b-in-crs', 4326);  updateBatchInDetails(); }
+    if ($('b-out-crs')) { setDefaultCRS('b-out-crs', 3857); updateBatchOutDetails(); }
+    updateBatchOverlapBanner();
+    if ($('b-in-mode')) toggleBatchCRSMode();
+}
 
-    setDefaultCRS('m-in-crs', 4326);
-    setDefaultCRS('m-out-crs', 3857);
-    updateCRSDetails('m-in');
-    updateCRSDetails('m-out');
+/* ═══════════════════════════════════════════════════
+   MAPS
+═══════════════════════════════════════════════════ */
+function initMaps() {
+    const opt = { center:[20,0], zoom:2, zoomControl:true, attributionControl:false };
+    const tile = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png';
+    const tileOpt = { subdomains:'abcd', maxZoom:19 };
+
+    manualMap = L.map('manual-map', opt);
+    batchMap  = L.map('batch-map',  opt);
+    L.tileLayer(tile, tileOpt).addTo(manualMap);
+    L.tileLayer(tile, tileOpt).addTo(batchMap);
+
+    manualInRect      = L.rectangle([[0,0],[0,0]], {color:'#00d4aa', weight:2, fillOpacity:0.1}).addTo(manualMap);
+    manualOutRect     = L.rectangle([[0,0],[0,0]], {color:'#f5a623', weight:2, dashArray:'6', fillOpacity:0.05}).addTo(manualMap);
+    manualOverlapRect = L.rectangle([[0,0],[0,0]], {color:'#00d4aa', weight:0, fillOpacity:0.2}).addTo(manualMap);
+    manualMarker      = L.marker([0,0], {icon: L.divIcon({className:'pulse-marker', iconSize:[14,14]})}).addTo(manualMap);
+
+    batchInRect      = L.rectangle([[0,0],[0,0]], {color:'#00d4aa', weight:2, fillOpacity:0.1}).addTo(batchMap);
+    batchOutRect     = L.rectangle([[0,0],[0,0]], {color:'#f5a623', weight:2, dashArray:'6', fillOpacity:0.05}).addTo(batchMap);
+    batchOverlapRect = L.rectangle([[0,0],[0,0]], {color:'#00d4aa', weight:0, fillOpacity:0.2}).addTo(batchMap);
+
+    updateManualMap();
+    updateBatchMap();
+}
+
+/* ═══════════════════════════════════════════════════
+   TAB / MODE SWITCHING
+═══════════════════════════════════════════════════ */
+function switchMode(mode) {
+    $('mode-manual').classList.toggle('hidden', mode !== 'manual');
+    $('mode-batch').classList.toggle('hidden',  mode !== 'batch');
+    $('tab-manual').classList.toggle('active',  mode === 'manual');
+    $('tab-batch').classList.toggle('active',   mode === 'batch');
+    setTimeout(() => {
+        if (mode === 'manual' && manualMap) manualMap.invalidateSize();
+        if (mode === 'batch'  && batchMap)  batchMap.invalidateSize();
+    }, 50);
+}
+
+/* ═══════════════════════════════════════════════════
+   CRS DROPDOWN HELPERS
+═══════════════════════════════════════════════════ */
+function populateCRSDropdown(id, list) {
+    const sel = $(id);
+    if (!sel) return;
+    const data = list || CRS_DB;
+    sel.innerHTML = data.map(c => `<option value="${c.code}">EPSG:${c.code} — ${c.name}</option>`).join('');
 }
 
 function setDefaultCRS(id, code) {
-    var sel = $(id);
-    for (var i = 0; i < sel.options.length; i++) {
-        if (parseInt(sel.options[i].value) === code) { sel.selectedIndex = i; return; }
-    }
-}
-
-function onRegionChange(prefix) {
-    var region = $(prefix + '-region') ? $(prefix + '-region').value : '';
-    var countrySel = $(prefix + '-country');
-
-    var countries = [];
-    if (region && REGION_MAP[region]) {
-        countries = REGION_MAP[region];
-    } else {
-        var allC = new Set();
-        Object.values(REGION_MAP).forEach(function(arr) { arr.forEach(function(c) { allC.add(c); }); });
-        countries = Array.from(allC).sort();
-    }
-
-    countrySel.innerHTML = '<option value="">All Countries</option>' + countries.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
-    filterCRS(prefix);
-}
-
-function filterCRS(prefix) {
-    var region = $(prefix + '-region') ? $(prefix + '-region').value : '';
-    var country = $(prefix + '-country') ? $(prefix + '-country').value : '';
-
-    var filtered = CRS_DB;
-    if (region) filtered = filtered.filter(function(c) { return c.region === region; });
-    if (country) filtered = filtered.filter(function(c) { return c.country === country; });
-
-    populateCRSDropdown(prefix + '-crs', filtered);
-    updateCRSDetails(prefix);
-}
-
-function populateCRSDropdown(id, list) {
-    list = list || CRS_DB;
-    var sel = $(id);
+    const sel = $(id);
     if (!sel) return;
-    var sorted = list.slice().sort(function(a, b) { return a.code - b.code; });
-    sel.innerHTML = sorted.map(function(c) { return '<option value="' + c.code + '">EPSG:' + c.code + ' \u2014 ' + c.name + ' [' + c.unit + ']</option>'; }).join('');
+    const opt = [...sel.options].find(o => parseInt(o.value) === code);
+    if (opt) sel.value = code;
 }
 
-function updateCRSDetails(prefix) {
-    var code = parseInt($(prefix + '-crs') ? $(prefix + '-crs').value : '0');
-    var detailsDiv = $(prefix + '-details');
-    if (!detailsDiv || isNaN(code)) return;
-
-    var crs = CRS_DB.find(function(c) { return c.code === code; });
-    if (crs) {
-        detailsDiv.innerHTML = '<b>Name:</b> ' + crs.name + ' | <b>Datum:</b> ' + crs.datum + ' | <b>Type:</b> ' + crs.type + ' | <b>Unit:</b> ' + crs.unit;
+/* ═══════════════════════════════════════════════════
+   BBOX HELPERS
+═══════════════════════════════════════════════════ */
+function bboxOverlap(a, b) {
+    if (!a || !b || isNaN(a.bbox_w) || isNaN(b.bbox_w)) return null;
+    return !(a.bbox_e < b.bbox_w || a.bbox_w > b.bbox_e || a.bbox_n < b.bbox_s || a.bbox_s > b.bbox_n);
+}
+function bboxIntersection(a, b) {
+    if (!a || !b || isNaN(a.bbox_w) || isNaN(b.bbox_w)) return null;
+    const s = Math.max(a.bbox_s, b.bbox_s), w = Math.max(a.bbox_w, b.bbox_w);
+    const n = Math.min(a.bbox_n, b.bbox_n), e = Math.min(a.bbox_e, b.bbox_e);
+    return (s < n && w < e) ? [[s,w],[n,e]] : null;
+}
+function safeSetBounds(rect, crs) {
+    if (crs && !isNaN(crs.bbox_w)) {
+        try { rect.setBounds([[crs.bbox_s, crs.bbox_w],[crs.bbox_n, crs.bbox_e]]); } catch(e) {}
     } else {
-        detailsDiv.innerHTML = '<span style="color:var(--warn)">CRS not in local database. Will attempt to fetch from epsg.io.</span>';
+        try { rect.setBounds([[0,0],[0.001,0.001]]); } catch(e) {}
     }
+}
 
-    var formatSel = $(prefix + '-format');
-    if (formatSel && prefix.indexOf('out') !== -1) {
-        var isGeo = crs && crs.type === 'Geographic';
-        if (isGeo) {
-            formatSel.innerHTML =
-                '<option value="DD">Decimal Degrees (DD)</option>' +
-                '<option value="DMS">Degrees Minutes Seconds (DMS)</option>' +
-                '<option value="DMD">Degrees Decimal Minutes (DMD)</option>' +
-                '<option value="GRAD">Gradians</option>';
-        } else {
-            var base = (crs && crs.unit) || 'm';
-            formatSel.innerHTML =
-                '<option value="1|m">Meters (m)</option>' +
-                '<option value="0.3048|ft">International Feet (ft)</option>' +
-                '<option value="0.3048006096|us-ft">US Survey Feet (us-ft)</option>' +
-                '<option value="1000|km">Kilometers (km)</option>' +
-                '<option value="1609.344|mi">Miles (mi)</option>';
-            for (var i = 0; i < formatSel.options.length; i++) {
-                if (formatSel.options[i].value.endsWith('|' + base)) { formatSel.selectedIndex = i; break; }
+/* ═══════════════════════════════════════════════════
+   MANUAL MODE — FUNCTIONS
+═══════════════════════════════════════════════════ */
+function onRegionChange(pre) {
+    const region = $(pre + '-region')?.value || '';
+    const countrySel = $(pre + '-country');
+    if (!countrySel) return;
+    let countries = [];
+    if (region && REGION_MAP[region]) countries = REGION_MAP[region];
+    else { const all = new Set(); Object.values(REGION_MAP).forEach(arr => arr.forEach(c => all.add(c))); countries = Array.from(all).sort(); }
+    countrySel.innerHTML = '<option value="">All Countries</option>' + countries.map(c => `<option>${c}</option>`).join('');
+    filterManualCRS(pre);
+}
+
+function filterManualCRS(pre) {
+    const region  = $(pre + '-region')?.value  || '';
+    const country = $(pre + '-country')?.value || '';
+    let filtered = CRS_DB;
+    if (region)  filtered = filtered.filter(c => c.region  === region);
+    if (country) filtered = filtered.filter(c => c.country === country);
+    populateCRSDropdown(pre + '-crs', filtered);
+    if (pre === 'm-in') onInCRSChange(); else onOutCRSChange();
+}
+
+function onInCRSChange() {
+    updateCRSDetails('m-in');
+    filterManualOutputByOverlap();
+    updateManualMap();
+}
+
+function onOutCRSChange() {
+    updateCRSDetails('m-out');
+    updateOutputFormat('m-out');
+    updateManualOverlapBanner();
+    updateManualMap();
+}
+
+function filterManualOutputByOverlap() {
+    const compat  = $('m-compat-filter')?.checked ?? true;
+    const inCode  = parseInt($('m-in-crs')?.value);
+    const inCRS   = CRS_DB.find(c => c.code === inCode);
+    const outSel  = $('m-out-crs');
+    if (!outSel) return;
+    const current = outSel.value;
+    const region  = $('m-out-region')?.value  || '';
+    const country = $('m-out-country')?.value || '';
+    let filtered  = CRS_DB.filter(c => (!region || c.region===region) && (!country || c.country===country));
+    if (compat && inCRS && !isNaN(inCRS.bbox_w)) {
+        filtered = filtered.filter(c => !isNaN(c.bbox_w) && bboxOverlap(inCRS, c) !== false);
+    }
+    outSel.innerHTML = filtered.map(c => `<option value="${c.code}">EPSG:${c.code} — ${c.name}</option>`).join('');
+    if ([...outSel.options].some(o => o.value == current)) outSel.value = current;
+    onOutCRSChange();
+}
+
+function updateCRSDetails(pre) {
+    const code = parseInt($(pre + '-crs')?.value);
+    const crs  = CRS_DB.find(c => c.code === code);
+    const div  = $(pre + '-details');
+    if (!div) return;
+    if (crs) div.innerHTML = `<b>${crs.name}</b> &nbsp;|&nbsp; ${crs.datum} &nbsp;|&nbsp; ${crs.type} &nbsp;|&nbsp; ${crs.unit}`;
+    else div.innerHTML = '';
+}
+
+function updateOutputFormat(pre) {
+    const code   = parseInt($(pre + '-crs')?.value);
+    const crs    = CRS_DB.find(c => c.code === code);
+    const fmtSel = $(pre + '-format');
+    if (!fmtSel) return;
+    if (crs && crs.type && crs.type.startsWith('Geographic')) {
+        fmtSel.innerHTML = '<option value="DD">Decimal Degrees (DD)</option><option value="DMS">DMS</option><option value="DMD">DMD</option><option value="GRAD">Grad</option>';
+    } else {
+        fmtSel.innerHTML = '<option value="1|m">Meters (m)</option><option value="0.3048|ft">Feet (ft)</option><option value="0.001|km">Kilometers (km)</option>';
+    }
+}
+
+function updateManualOverlapBanner() {
+    const inC  = CRS_DB.find(c => c.code === parseInt($('m-in-crs')?.value));
+    const outC = CRS_DB.find(c => c.code === parseInt($('m-out-crs')?.value));
+    const banner = $('m-overlap-banner');
+    if (!banner) return;
+    if (!inC?.bbox_w || !outC?.bbox_w) { banner.className='overlap-banner overlap-warn'; banner.innerHTML='⚠️ Extent unknown'; return; }
+    const ok = bboxOverlap(inC, outC);
+    if (ok)      { banner.className='overlap-banner overlap-ok';  banner.innerHTML='✅ Shared extent — transformation is valid'; }
+    else         { banner.className='overlap-banner overlap-bad'; banner.innerHTML='❌ No geographic overlap — results may be invalid'; }
+}
+
+function updateManualMap() {
+    if (!manualMap) return;
+    const inC  = CRS_DB.find(c => c.code === parseInt($('m-in-crs')?.value));
+    const outC = CRS_DB.find(c => c.code === parseInt($('m-out-crs')?.value));
+    safeSetBounds(manualInRect,  inC);
+    safeSetBounds(manualOutRect, outC);
+    const inter = bboxIntersection(inC, outC);
+    if (inter) { try { manualOverlapRect.setBounds(inter); } catch(e) {} }
+    try {
+        const bounds = manualInRect.getBounds().extend(manualOutRect.getBounds());
+        manualMap.fitBounds(bounds, {padding:[12,12]});
+    } catch(e) {}
+}
+
+function swapCRS() {
+    const inVal  = $('m-in-crs')?.value;
+    const outVal = $('m-out-crs')?.value;
+    if (!inVal || !outVal) return;
+    // Also swap input coords
+    const x = $('m-x')?.value, y = $('m-y')?.value;
+    const ox = $('m-out-x')?.value, oy = $('m-out-y')?.value;
+    if ($('m-in-crs'))  $('m-in-crs').value  = outVal;
+    if ($('m-out-crs')) $('m-out-crs').value = inVal;
+    if (ox && oy && $('m-x') && $('m-y')) { $('m-x').value = ox; $('m-y').value = oy; }
+    if ($('m-out-x')) $('m-out-x').value = ''; if ($('m-out-y')) $('m-out-y').value = '';
+    onInCRSChange();
+    onOutCRSChange();
+}
+
+async function transformManual() {
+    const x = $('m-x')?.value?.trim();
+    const y = $('m-y')?.value?.trim();
+    if (!x || !y) { showToast('Enter X and Y values', 'error'); return; }
+
+    const inCode  = parseInt($('m-in-crs')?.value);
+    const outCode = parseInt($('m-out-crs')?.value);
+    const format  = $('m-out-format')?.value || 'DD';
+
+    try {
+        const result = await transformPoint(x, y, inCode, outCode, format);
+        if ($('m-out-x')) $('m-out-x').value = result.x;
+        if ($('m-out-y')) $('m-out-y').value = result.y;
+
+        // Place marker if output is geographic
+        const outCRS = CRS_DB.find(c => c.code === outCode);
+        if (manualMap && !isNaN(result.rawY) && !isNaN(result.rawX)) {
+            if (outCRS?.type?.startsWith('Geographic')) {
+                const lat = result.rawY, lng = result.rawX;
+                if (lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+                    manualMarker.setLatLng([lat, lng]);
+                    const info = $('m-point-info');
+                    if (info) info.innerHTML = `📍 Marker at ${lat.toFixed(5)}°, ${lng.toFixed(5)}°`;
+                }
             }
         }
+        showToast('Transformation complete!', 'success');
+    } catch(e) {
+        showToast('Error: ' + e.message, 'error');
     }
+}
+
+/* ═══════════════════════════════════════════════════
+   BATCH MODE — FUNCTIONS
+═══════════════════════════════════════════════════ */
+function onBatchRegionChange(type) {
+    const prefix    = type === 'in' ? 'b-in' : 'b-out';
+    const region    = $(prefix + '-region')?.value || '';
+    const countrySel = $(prefix + '-country');
+    if (!countrySel) return;
+    let countries = [];
+    if (region && REGION_MAP[region]) countries = REGION_MAP[region];
+    else { const all = new Set(); Object.values(REGION_MAP).forEach(arr => arr.forEach(c => all.add(c))); countries = Array.from(all).sort(); }
+    countrySel.innerHTML = '<option value="">All Countries</option>' + countries.map(c => `<option>${c}</option>`).join('');
+    filterBatchCRS(type);
+}
+
+function filterBatchCRS(type) {
+    const prefix  = type === 'in' ? 'b-in' : 'b-out';
+    const region  = $(prefix + '-region')?.value  || '';
+    const country = $(prefix + '-country')?.value || '';
+    let filtered  = CRS_DB;
+    if (region)  filtered = filtered.filter(c => c.region  === region);
+    if (country) filtered = filtered.filter(c => c.country === country);
+    populateCRSDropdown(prefix + '-crs', filtered);
+    if (type === 'in') onBatchInCRSChange(); else onBatchOutCRSChange();
+}
+
+function onBatchInCRSChange()  { updateBatchInDetails();  filterBatchOutputByOverlap(); updateBatchMap(); }
+function onBatchOutCRSChange() { updateBatchOutDetails(); updateBatchOverlapBanner();   updateBatchMap(); }
+
+function filterBatchOutputByOverlap() {
+    const compat  = $('b-compat-filter')?.checked ?? true;
+    const inCode  = parseInt($('b-in-crs')?.value);
+    const inCRS   = CRS_DB.find(c => c.code === inCode);
+    const outSel  = $('b-out-crs');
+    if (!outSel) return;
+    const current = outSel.value;
+    const region  = $('b-out-region')?.value  || '';
+    const country = $('b-out-country')?.value || '';
+    let filtered  = CRS_DB.filter(c => (!region || c.region===region) && (!country || c.country===country));
+    if (compat && inCRS && !isNaN(inCRS.bbox_w)) {
+        filtered = filtered.filter(c => !isNaN(c.bbox_w) && bboxOverlap(inCRS, c) !== false);
+    }
+    outSel.innerHTML = filtered.map(c => `<option value="${c.code}">EPSG:${c.code} — ${c.name}</option>`).join('');
+    if ([...outSel.options].some(o => o.value == current)) outSel.value = current;
+    onBatchOutCRSChange();
+}
+
+function updateBatchInDetails() {
+    const code = parseInt($('b-in-crs')?.value);
+    const crs  = CRS_DB.find(c => c.code === code);
+    const div  = $('b-in-details');
+    if (div && crs) div.innerHTML = `<b>${crs.name}</b> &nbsp;|&nbsp; ${crs.datum} &nbsp;|&nbsp; ${crs.type}`;
 }
 
 function updateBatchOutDetails() {
-    var code = parseInt($('b-out-crs') ? $('b-out-crs').value : '0');
-    var formatSel = $('b-out-format');
-    var crs = CRS_DB.find(function(c) { return c.code === code; });
-
-    if (crs && formatSel) {
-        var isGeo = crs.type === 'Geographic';
-        if (isGeo) {
-            formatSel.innerHTML =
-                '<option value="DD">Decimal Degrees (DD)</option>' +
-                '<option value="DMS">Degrees Minutes Seconds (DMS)</option>' +
-                '<option value="DMD">Degrees Decimal Minutes (DMD)</option>' +
-                '<option value="GRAD">Gradians</option>';
+    const code = parseInt($('b-out-crs')?.value);
+    const crs  = CRS_DB.find(c => c.code === code);
+    const div  = $('b-out-details');
+    if (div && crs) div.innerHTML = `<b>${crs.name}</b> &nbsp;|&nbsp; ${crs.datum} &nbsp;|&nbsp; ${crs.type}`;
+    const fmt  = $('b-out-format');
+    if (fmt && crs) {
+        if (crs.type?.startsWith('Geographic')) {
+            fmt.innerHTML = '<option value="DD">Decimal Degrees (DD)</option><option value="DMS">DMS</option><option value="DMD">DMD</option><option value="GRAD">Grad</option>';
         } else {
-            var base = crs.unit || 'm';
-            formatSel.innerHTML =
-                '<option value="1|m">Meters (m)</option>' +
-                '<option value="0.3048|ft">International Feet (ft)</option>' +
-                '<option value="0.3048006096|us-ft">US Survey Feet (us-ft)</option>' +
-                '<option value="1000|km">Kilometers (km)</option>' +
-                '<option value="1609.344|mi">Miles (mi)</option>';
-            for (var i = 0; i < formatSel.options.length; i++) {
-                if (formatSel.options[i].value.endsWith('|' + base)) { formatSel.selectedIndex = i; break; }
-            }
+            fmt.innerHTML = '<option value="1|m">Meters (m)</option><option value="0.3048|ft">Feet (ft)</option><option value="0.001|km">Kilometers (km)</option>';
         }
     }
 }
 
-/* ═══════════════════ PARSING & FORMATTING ═══════════════════ */
-function parseAngle(val, formatHint) {
-    formatHint = formatHint || 'AUTO';
-    if (typeof val !== 'string') val = String(val);
-    val = val.trim().replace(/\s+/g, ' ');
-
-    var sign = 1;
-    if (/[SW-]/i.test(val)) sign = -1;
-    val = val.replace(/[NSEW]/gi, '').replace(/-/g, '').trim();
-
-    if (formatHint === 'GRAD') {
-        return (parseFloat(val) * 0.9) * sign;
-    }
-
-    // Explicit DD hint, or AUTO with a plain decimal/integer (no separator
-    // characters) — parse directly as a float.  This prevents the DMS regex
-    // from backtracking through e.g. "6.05" and mis-reading it as 6°0′5″.
-    if (formatHint === 'DD' || (formatHint === 'AUTO' && /^\d+(\.\d+)?°?$/.test(val))) {
-        return parseFloat(val) * sign;
-    }
-
-    var dmsRegex = /^(\d+\.?\d*)[°d]?\s*(\d+\.?\d*)['m]?\s*(\d+\.?\d*)["s]?/i;
-    var dmdRegex = /^(\d+\.?\d*)[°d]?\s*(\d+\.?\d*)['m]?/i;
-    var ddRegex = /^(\d+\.?\d*)[°d]?/i;
-    var match;
-
-    if (formatHint === 'DMS' && (match = val.match(dmsRegex))) {
-        return (parseFloat(match[1]) + parseFloat(match[2]) / 60 + parseFloat(match[3]) / 3600) * sign;
-    }
-    if (formatHint === 'DMD' && (match = val.match(dmdRegex))) {
-        return (parseFloat(match[1]) + parseFloat(match[2]) / 60) * sign;
-    }
-
-    // AUTO: only trigger DMS/DMD detection when genuine separator characters
-    // are present.  A plain "6.05" must never be split into 6°0′5″.
-    if ((match = val.match(dmsRegex)) && (val.indexOf('"') !== -1 || val.indexOf('s') !== -1 || (match[2] && match[3] && parseFloat(match[2]) < 60 && parseFloat(match[3]) < 60 && /[°d\s'"]/.test(val)))) {
-        return (parseFloat(match[1]) + parseFloat(match[2]) / 60 + parseFloat(match[3]) / 3600) * sign;
-    }
-    if ((match = val.match(dmdRegex)) && (val.indexOf("'") !== -1 || val.indexOf('m') !== -1) && parseFloat(match[2]) < 60) {
-        return (parseFloat(match[1]) + parseFloat(match[2]) / 60) * sign;
-    }
-
-    match = val.match(ddRegex);
-    if (match) return parseFloat(match[1]) * sign;
-
-    return NaN;
+function updateBatchOverlapBanner() {
+    const inC  = CRS_DB.find(c => c.code === parseInt($('b-in-crs')?.value));
+    const outC = CRS_DB.find(c => c.code === parseInt($('b-out-crs')?.value));
+    const b    = $('b-overlap-banner');
+    if (!b) return;
+    if (!inC?.bbox_w || !outC?.bbox_w) { b.className='overlap-banner overlap-warn'; b.innerHTML='⚠️ Extent unknown'; return; }
+    const ok = bboxOverlap(inC, outC);
+    if (ok) { b.className='overlap-banner overlap-ok'; b.innerHTML='✅ Shared extent'; }
+    else    { b.className='overlap-banner overlap-bad'; b.innerHTML='❌ No overlap — results may be invalid'; }
 }
 
-function formatAngle(dd, format) {
-    if (isNaN(dd)) return 'Invalid';
-    var sign = dd < 0 ? -1 : 1;
-    dd = Math.abs(dd);
-
-    if (format === 'GRAD') return ((sign < 0 ? '-' : '') + (dd / 0.9).toFixed(6) + ' grad');
-
-    var d = Math.floor(dd);
-    var mFull = (dd - d) * 60;
-
-    if (format === 'DMD') {
-        return (sign < 0 ? '-' : '') + d + '\u00B0 ' + mFull.toFixed(4) + "'";
-    }
-
-    if (format === 'DMS') {
-        var m = Math.floor(mFull);
-        var s = (mFull - m) * 60;
-        return (sign < 0 ? '-' : '') + d + '\u00B0 ' + m + "' " + s.toFixed(2) + '"';
-    }
-
-    return (sign < 0 ? '-' : '') + dd.toFixed(8) + '\u00B0';
-}
-
-function convertLength(val, factor) { return val * factor; }
-
-/* ═══════════════════ EPSG.IO FALLBACK ═══════════════════ */
-async function fetchEpsgDef(code) {
-    try { proj4('EPSG:' + code); return 'EPSG:' + code; } catch (e) {}
-    try {
-        var r = await fetch('https://epsg.io/' + code + '.proj4');
-        if (!r.ok) throw new Error('Not found');
-        var d = await r.text();
-        proj4.defs('EPSG:' + code, d.trim());
-        return 'EPSG:' + code;
-    } catch (e) {
-        throw new Error('EPSG:' + code + ' unavailable.');
-    }
-}
-
-/* ═══════════════════ CORE TRANSFORMATION ═══════════════════ */
-async function transformPoint(x, y, inCode, outCode, inFormat, outFormatStr) {
-    var inCRS = CRS_DB.find(function(c) { return c.code === inCode; }) || { type: 'Unknown', unit: 'Unknown' };
-    var outCRS = CRS_DB.find(function(c) { return c.code === outCode; }) || { type: 'Unknown', unit: 'Unknown' };
-
-    var pX = x, pY = y;
-    if (inCRS.type === 'Geographic') {
-        pX = parseAngle(x, inFormat);
-        pY = parseAngle(y, inFormat);
-    } else {
-        pX = parseFloat(x);
-        pY = parseFloat(y);
-    }
-
-    if (isNaN(pX) || isNaN(pY)) throw new Error('Invalid coordinate values provided.');
-
-    // Identity short-circuit: same CRS in and out — skip proj4 to avoid
-    // datum-shift round-trip errors (e.g. EPSG:4307 Nord Sahara drift).
-    var outX, outY;
-    if (inCode === outCode) {
-        outX = pX;
-        outY = pY;
-    } else {
-        var fromStr = await fetchEpsgDef(inCode);
-        var toStr   = await fetchEpsgDef(outCode);
-        var result  = proj4(fromStr, toStr, [pX, pY]);
-        outX = result[0];
-        outY = result[1];
-    }
-
-    if (isNaN(outX) || isNaN(outY)) throw new Error('Transformation produced invalid coordinates. Check that input values are within the valid extent of EPSG:' + inCode + '.');
-
-    if (outCRS.type === 'Geographic') {
-        outX = formatAngle(outX, outFormatStr);
-        outY = formatAngle(outY, outFormatStr);
-    } else {
-        var parts = outFormatStr.split('|');
-        var factor = parseFloat(parts[0]);
-        var unitName = parts[1];
-        outX = convertLength(outX, factor).toFixed(3) + ' ' + unitName;
-        outY = convertLength(outY, factor).toFixed(3) + ' ' + unitName;
-    }
-
-    return { x: outX, y: outY };
-}
-
-/* ═══════════════════ MANUAL MODE ═══════════════════ */
-async function transformManual() {
-    var inCode = parseInt($('m-in-crs').value);
-    var outCode = parseInt($('m-out-crs').value);
-    var inX = $('m-in-x').value;
-    var inY = $('m-in-y').value;
-    var inFormat = $('m-in-format').value;
-    var outFormat = $('m-out-format').value;
-
-    if (!inX.trim() || !inY.trim()) return showToast('Please enter X and Y coordinates', 'error');
-
-    $('m-out-x').value = 'Transforming...';
-    $('m-out-y').value = 'Transforming...';
-
-    try {
-        var res = await transformPoint(inX, inY, inCode, outCode, inFormat, outFormat);
-        $('m-out-x').value = res.x;
-        $('m-out-y').value = res.y;
-        showToast('Coordinate transformed successfully!', 'success');
-    } catch(e) {
-        $('m-out-x').value = 'Error';
-        $('m-out-y').value = 'Error';
-        showToast(e.message, 'error');
-    }
-}
-
-function swapSystems() {
-    var inCrs = $('m-in-crs').value;
-    var outCrs = $('m-out-crs').value;
-    var inReg = $('m-in-region').value;
-    var outReg = $('m-out-region').value;
-    var inCtry = $('m-in-country').value;
-    var outCtry = $('m-out-country').value;
-
-    $('m-in-region').value = outReg;
-    $('m-out-region').value = inReg;
-    onRegionChange('m-in');
-    onRegionChange('m-out');
-    $('m-in-country').value = outCtry;
-    $('m-out-country').value = inCtry;
-    filterCRS('m-in');
-    filterCRS('m-out');
-
-    $('m-in-crs').value = outCrs;
-    $('m-out-crs').value = inCrs;
-    updateCRSDetails('m-in');
-    updateCRSDetails('m-out');
-}
-
-/* ═══════════════════ BATCH MODE ═══════════════════ */
-var batchData = null;
-var batchColumns = [];
-var transformedCSV = '';
-
-function switchMode(mode) {
-    $('mode-manual').classList.toggle('section-hidden', mode !== 'manual');
-    $('mode-manual').classList.toggle('section-reveal', mode === 'manual');
-    $('mode-batch').classList.toggle('section-hidden', mode !== 'batch');
-    $('mode-batch').classList.toggle('section-reveal', mode === 'batch');
-    $('tab-manual').classList.toggle('active', mode === 'manual');
-    $('tab-batch').classList.toggle('active', mode === 'batch');
-}
-
-function loadBatchFile(file) {
-    var ext = file.name.split('.').pop().toLowerCase();
-    $('file-info').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Loading...';
-    $('file-info').classList.remove('hidden');
-
-    if (ext === 'csv') {
-        Papa.parse(file, { header: true, dynamicTyping: true, skipEmptyLines: true, complete: function(res) { dataReady(res.data); } });
-    } else {
-        var r = new FileReader();
-        r.onload = function(e) {
-            var wb = XLSX.read(e.target.result, { type: 'array' });
-            dataReady(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' }));
-        };
-        r.readAsArrayBuffer(file);
-    }
-}
-
-function dataReady(data) {
-    if (!data.length) return showToast('File is empty', 'error');
-    batchData = data;
-    batchColumns = Object.keys(data[0]);
-    $('file-info').innerHTML = '<i class="fas fa-check-circle mr-1" style="color:var(--success)"></i> Loaded ' + data.length + ' rows';
-
-    var colOpts = batchColumns.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
-    $('b-x-col').innerHTML = colOpts;
-    $('b-y-col').innerHTML = colOpts;
-    $('b-in-epsg-col').innerHTML = colOpts;
-
-    // Default Y to 2nd column and EPSG to 3rd so they don't all start on col 0.
-    // Users can still override via the dropdowns.
-    if (batchColumns.length > 1) $('b-y-col').selectedIndex = 1;
-    if (batchColumns.length > 2) $('b-in-epsg-col').selectedIndex = 2;
+function updateBatchMap() {
+    if (!batchMap) return;
+    const inC  = CRS_DB.find(c => c.code === parseInt($('b-in-crs')?.value));
+    const outC = CRS_DB.find(c => c.code === parseInt($('b-out-crs')?.value));
+    safeSetBounds(batchInRect,  inC);
+    safeSetBounds(batchOutRect, outC);
+    const inter = bboxIntersection(inC, outC);
+    if (inter) { try { batchOverlapRect.setBounds(inter); } catch(e) {} }
+    try { batchMap.fitBounds(batchInRect.getBounds().extend(batchOutRect.getBounds()), {padding:[12,12]}); } catch(e) {}
 }
 
 function toggleBatchCRSMode() {
-    var isGlobal = $('b-in-mode').value === 'global';
-    $('b-in-crs').classList.toggle('hidden', !isGlobal);
-    $('b-in-epsg-col').classList.toggle('hidden', isGlobal);
+    const isGlobal = $('b-in-mode')?.value === 'global';
+    $('batch-global-input')?.classList.toggle('hidden', !isGlobal);
+    $('b-epsg-col-wrap')?.classList.toggle('hidden', isGlobal);
+    if (isGlobal) onBatchInCRSChange();
 }
 
+/* ═══════════════════════════════════════════════════
+   FILE LOADING
+═══════════════════════════════════════════════════ */
+function loadBatchFile(file) {
+    const ext = file.name.split('.').pop().toLowerCase();
+    const info = $('file-info');
+    if (info) { info.classList.remove('hidden'); info.innerHTML = `<i class="fas fa-file mr-1"></i>${file.name} (${(file.size/1024).toFixed(1)} KB)`; }
+
+    if (ext === 'csv') {
+        Papa.parse(file, {
+            header: true, skipEmptyLines: true,
+            complete: res => { batchData = res.data; populateColumnSelectors(Object.keys(res.data[0] || {})); showToast(res.data.length + ' rows loaded', 'success'); },
+            error: e => showToast('CSV error: ' + e.message, 'error')
+        });
+    } else if (ext === 'xlsx' || ext === 'xls') {
+        const reader = new FileReader();
+        reader.onload = e => {
+            try {
+                const wb = XLSX.read(e.target.result, {type:'binary'});
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                batchData = XLSX.utils.sheet_to_json(ws);
+                populateColumnSelectors(Object.keys(batchData[0] || {}));
+                showToast(batchData.length + ' rows loaded from Excel', 'success');
+            } catch(err) { showToast('Excel error: ' + err.message, 'error'); }
+        };
+        reader.readAsBinaryString(file);
+    } else {
+        showToast('Unsupported file type: ' + ext, 'error');
+    }
+}
+
+function populateColumnSelectors(cols) {
+    ['b-x-col','b-y-col','b-in-epsg-col'].forEach(id => {
+        const sel = $(id);
+        if (!sel) return;
+        sel.innerHTML = cols.map(c => `<option value="${c}">${c}</option>`).join('');
+    });
+    const xGuess = cols.find(c => /^x$|^lon|^lng|^easting/i.test(c));
+    const yGuess = cols.find(c => /^y$|^lat|^northing/i.test(c));
+    if (xGuess && $('b-x-col')) $('b-x-col').value = xGuess;
+    if (yGuess && $('b-y-col')) $('b-y-col').value = yGuess;
+}
+
+/* ═══════════════════════════════════════════════════
+   COORDINATE TRANSFORM
+═══════════════════════════════════════════════════ */
+async function transformPoint(x, y, inCode, outCode, format) {
+    const inDef  = 'EPSG:' + inCode;
+    const outDef = 'EPSG:' + outCode;
+    if (!proj4.defs(inDef))  throw new Error('CRS EPSG:' + inCode  + ' not registered');
+    if (!proj4.defs(outDef)) throw new Error('CRS EPSG:' + outCode + ' not registered');
+
+    const px = parseFloat(x), py = parseFloat(y);
+    if (isNaN(px) || isNaN(py)) throw new Error('Invalid coordinates: ' + x + ', ' + y);
+
+    const [rawX, rawY] = proj4(inDef, outDef, [px, py]);
+    if (isNaN(rawX) || isNaN(rawY)) throw new Error('Transformation produced NaN');
+
+    const outCRS = CRS_DB.find(c => c.code === outCode);
+    const isGeo  = outCRS?.type?.startsWith('Geographic');
+    let outX, outY;
+
+    if (isGeo) {
+        outX = fmtGeoCoord(rawX, format, 'lon');
+        outY = fmtGeoCoord(rawY, format, 'lat');
+    } else {
+        let factor = 1;
+        if (format && format.includes('|')) factor = parseFloat(format.split('|')[0]);
+        const suffix = format?.split('|')[1] || 'm';
+        outX = (rawX * factor).toFixed(4) + ' ' + suffix;
+        outY = (rawY * factor).toFixed(4) + ' ' + suffix;
+    }
+    return { x: outX, y: outY, rawX, rawY };
+}
+
+function fmtGeoCoord(val, format, axis) {
+    switch (format) {
+        case 'DMS':  return toDMS(val, axis);
+        case 'DMD':  return toDMD(val, axis);
+        case 'GRAD': return (val * 400 / 360).toFixed(6) + ' grad';
+        default:     return val.toFixed(8) + '°';
+    }
+}
+function toDMS(dd, axis) {
+    const dir = axis === 'lat' ? (dd>=0?'N':'S') : (dd>=0?'E':'W');
+    const abs = Math.abs(dd), d = Math.floor(abs);
+    const mF  = (abs-d)*60, m = Math.floor(mF), s = ((mF-m)*60).toFixed(3);
+    return `${d}° ${m}' ${s}" ${dir}`;
+}
+function toDMD(dd, axis) {
+    const dir = axis === 'lat' ? (dd>=0?'N':'S') : (dd>=0?'E':'W');
+    const abs = Math.abs(dd), d = Math.floor(abs), m = ((abs-d)*60).toFixed(5);
+    return `${d}° ${m}' ${dir}`;
+}
+
+/* ═══════════════════════════════════════════════════
+   BATCH TRANSFORM
+═══════════════════════════════════════════════════ */
 async function transformBatch() {
-    if (!batchData) return showToast('Load a file first', 'error');
-    var btn = $('btn-batch');
-    btn.disabled = true;
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+    if (!batchData || !batchData.length) { showToast('Load a file first', 'error'); return; }
+    const btn = $('btn-batch');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing…';
+
+    const xCol      = $('b-x-col')?.value;
+    const yCol      = $('b-y-col')?.value;
+    const outCode   = parseInt($('b-out-crs')?.value);
+    const outFormat = $('b-out-format')?.value || 'DD';
+    const isGlobal  = $('b-in-mode')?.value === 'global';
+    const globalIn  = parseInt($('b-in-crs')?.value);
+    const epsgCol   = $('b-in-epsg-col')?.value;
+    const outCRS    = CRS_DB.find(c => c.code === outCode) || {};
+
+    let successCount=0, errorCount=0, rangeCount=0;
+    const epsgDist = {};
 
     try {
-        var xCol = $('b-x-col').value;
-        var yCol = $('b-y-col').value;
-        var outCode = parseInt($('b-out-crs').value);
-        var outFormat = $('b-out-format').value;
-        var isGlobal = $('b-in-mode').value === 'global';
-        var globalInCode = parseInt($('b-in-crs').value);
-        var epsgCol = $('b-in-epsg-col').value;
-
-        var outXCol = 'Out_X';
-        var outYCol = 'Out_Y';
-
-        for (var i = 0; i < batchData.length; i++) {
-            var row = batchData[i];
+        transformedData = [];
+        for (let i = 0; i < batchData.length; i++) {
+            const row = Object.assign({}, batchData[i]);
             try {
-                var inCode = isGlobal ? globalInCode : parseInt(String(row[epsgCol]).match(/\d+/)[0]);
-                var res = await transformPoint(row[xCol], row[yCol], inCode, outCode, 'AUTO', outFormat);
-                row[outXCol] = res.x;
-                row[outYCol] = res.y;
+                let inCode;
+                if (isGlobal) {
+                    inCode = globalIn;
+                } else {
+                    const raw = String(row[epsgCol] || '');
+                    const m   = raw.match(/\d+/);
+                    if (!m) throw new Error('Cannot parse EPSG from: ' + raw);
+                    inCode = parseInt(m[0]);
+                }
+                const inCRS = CRS_DB.find(c => c.code === inCode) || {};
+                const res   = await transformPoint(row[xCol], row[yCol], inCode, outCode, outFormat);
+
+                let status = 'OK';
+                const pX = parseFloat(row[xCol]), pY = parseFloat(row[yCol]);
+                if (inCRS && !isNaN(inCRS.bbox_w) && inCRS.type?.startsWith('Geographic')) {
+                    if (pX < inCRS.bbox_w || pX > inCRS.bbox_e || pY < inCRS.bbox_s || pY > inCRS.bbox_n) status = 'Out of range (Input)';
+                }
+                if (status==='OK' && !isNaN(outCRS.bbox_w) && !isNaN(res.rawX)) {
+                    if (res.rawX < outCRS.bbox_w || res.rawX > outCRS.bbox_e || res.rawY < outCRS.bbox_s || res.rawY > outCRS.bbox_n) status = 'Out of range (Output)';
+                }
+
+                Object.assign(row, {
+                    Out_X: res.x, Out_Y: res.y,
+                    In_EPSG: inCode, In_CRS: inCRS.name||'', In_Datum: inCRS.datum||'', In_Type: inCRS.type||'', In_Unit: inCRS.unit||'',
+                    Out_EPSG: outCode, Out_CRS: outCRS.name||'', Out_Datum: outCRS.datum||'', Out_Type: outCRS.type||'', Out_Unit: outCRS.unit||'',
+                    Out_Format: outFormat, Status: status, Error: ''
+                });
+                if (status==='OK') successCount++; else rangeCount++;
+                epsgDist[inCode] = (epsgDist[inCode]||0) + 1;
             } catch(e) {
-                row[outXCol] = 'Error';
-                row[outYCol] = 'Error';
+                Object.assign(row, {
+                    Out_X:'Error', Out_Y:'Error',
+                    In_EPSG:'', In_CRS:'', In_Datum:'', In_Type:'', In_Unit:'',
+                    Out_EPSG: outCode, Out_CRS:'', Out_Datum:'', Out_Type:'', Out_Unit:'',
+                    Out_Format: outFormat, Status:'Error', Error: e.message
+                });
+                errorCount++;
             }
+            transformedData.push(row);
         }
 
-        transformedCSV = Papa.unparse(batchData);
-        $('btn-download').classList.remove('hidden');
-        showToast('Batch transformation complete!', 'success');
+        $('batch-summary-placeholder')?.classList.add('hidden');
+        $('batch-summary')?.classList.remove('hidden');
+        if ($('bs-total'))   $('bs-total').textContent   = batchData.length;
+        if ($('bs-success')) $('bs-success').textContent = successCount;
+        if ($('bs-range'))   $('bs-range').textContent   = rangeCount;
+        if ($('bs-error'))   $('bs-error').textContent   = errorCount;
 
+        const distDiv = $('bs-dist');
+        if (distDiv) {
+            let html = `<b style="color:var(--accent)">EPSG Distribution:</b><br>`;
+            for (const code in epsgDist) html += `EPSG:${code} — ${epsgDist[code]} rows<br>`;
+            distDiv.innerHTML = html;
+        }
+        $('btn-download-csv')?.classList.remove('hidden');
+        $('btn-download-xlsx')?.classList.remove('hidden');
+        showToast(`Done! ${successCount} success, ${rangeCount} out-of-range, ${errorCount} errors.`, 'success');
     } catch(e) {
         showToast('Batch error: ' + e.message, 'error');
     } finally {
-        btn.disabled = false;
-        btn.innerHTML = '<i class="fas fa-play"></i> Transform & Prepare Download';
+        btn.disabled = false; btn.innerHTML = '<i class="fas fa-play mr-2"></i>Transform';
     }
 }
 
-function downloadBatch() {
-    var blob = new Blob([transformedCSV], { type: 'text/csv;charset=utf-8;' });
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = 'transformed_coordinates.csv';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast('CSV Downloaded', 'success');
+/* ═══════════════════════════════════════════════════
+   DOWNLOADS
+═══════════════════════════════════════════════════ */
+function downloadBatchCSV() {
+    if (!transformedData) return;
+    const csv  = Papa.unparse(transformedData);
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    dlBlob(blob, 'transformed_coordinates.csv');
+    showToast('CSV downloaded', 'success');
 }
 
-/* ═══════════════════ TOAST ═══════════════════ */
+function downloadBatchExcel() {
+    if (!transformedData) return;
+    try {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(transformedData), 'Results');
+
+        const summaryData = [
+            {Parameter:'X Column',     Value: $('b-x-col')?.value},
+            {Parameter:'Y Column',     Value: $('b-y-col')?.value},
+            {Parameter:'Input Mode',   Value: $('b-in-mode')?.value},
+            {Parameter:'Input CRS',    Value: $('b-in-mode')?.value==='global' ? 'EPSG:'+$('b-in-crs')?.value : 'Column: '+$('b-in-epsg-col')?.value},
+            {Parameter:'Output CRS',   Value: 'EPSG:'+$('b-out-crs')?.value},
+            {Parameter:'Output Format',Value: $('b-out-format')?.value},
+            {Parameter:'Total Rows',   Value: transformedData.length},
+            {Parameter:'Success',      Value: $('bs-success')?.textContent},
+            {Parameter:'Out of Range', Value: $('bs-range')?.textContent},
+            {Parameter:'Errors',       Value: $('bs-error')?.textContent},
+            {Parameter:'Author',       Value: AUTHOR.name + ' (' + AUTHOR.email + ')'},
+        ];
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(summaryData), 'Summary');
+
+        const outCode  = parseInt($('b-out-crs')?.value);
+        const usedCodes = new Set(transformedData.map(r=>r.In_EPSG).filter(Boolean).map(Number));
+        usedCodes.add(outCode);
+        const metadata = Array.from(usedCodes).map(code => {
+            const crs = CRS_DB.find(c=>c.code===code);
+            return crs ? {EPSG:crs.code,Name:crs.name,Datum:crs.datum,Type:crs.type,Unit:crs.unit,PROJ4:crs.proj,W:crs.bbox_w,S:crs.bbox_s,E:crs.bbox_e,N:crs.bbox_n} : {EPSG:code};
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(metadata), 'CRS Metadata');
+        XLSX.writeFile(wb, 'transformed_coordinates.xlsx');
+        showToast('Excel downloaded', 'success');
+    } catch(e) {
+        showToast('Excel export error: ' + e.message, 'error');
+    }
+}
+
+function dlBlob(blob, name) {
+    const url = URL.createObjectURL(blob);
+    const a   = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
+/* ═══════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════ */
+function copyField(id) {
+    const val = $(id)?.value;
+    if (!val || val === '—') return;
+    navigator.clipboard.writeText(val).then(() => showToast('Copied!', 'success')).catch(() => {
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = val; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta);
+        showToast('Copied!', 'success');
+    });
+}
+
 function showToast(msg, type, dur) {
-    type = type || 'info';
-    dur = dur || 4000;
-    var c = $('toast-container'), t = document.createElement('div');
-    t.className = 'toast toast-' + type;
-    var icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle' };
-    t.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i><span>' + msg + '</span>';
+    type = type || 'info'; dur = dur || 4000;
+    const c = $('toast-container'), t = document.createElement('div');
+    const icons = {success:'fa-check-circle', error:'fa-times-circle', info:'fa-info-circle'};
+    t.className = `toast toast-${type}`;
+    t.innerHTML = `<i class="fas ${icons[type]||icons.info}"></i><span>${msg}</span>`;
     c.appendChild(t);
-    requestAnimationFrame(function() { requestAnimationFrame(function() { t.classList.add('toast-show'); }); });
-    setTimeout(function() { t.classList.remove('toast-show'); t.classList.add('toast-hide'); setTimeout(function() { t.remove(); }, 350); }, dur);
+    requestAnimationFrame(() => requestAnimationFrame(() => t.classList.add('toast-show')));
+    setTimeout(() => { t.classList.remove('toast-show'); t.classList.add('toast-hide'); setTimeout(()=>t.remove(), 350); }, dur);
 }
 
-/* ═══════════════════ FILE DROP WIRING ═══════════════════ */
-document.addEventListener('DOMContentLoaded', function() {
-    var DROP = $('drop-zone'), FINPUT = $('file-input');
+/* ═══════════════════════════════════════════════════
+   EVENT LISTENERS — single DOMContentLoaded
+═══════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+    // Drop zone
+    const DROP   = $('drop-zone');
+    const FINPUT = $('file-input');
     if (DROP && FINPUT) {
-        ['dragenter', 'dragover'].forEach(function(e) { DROP.addEventListener(e, function(ev) { ev.preventDefault(); DROP.style.borderColor = 'var(--accent)'; }); });
-        ['dragleave', 'drop'].forEach(function(e) { DROP.addEventListener(e, function(ev) { ev.preventDefault(); DROP.style.borderColor = 'rgba(255,255,255,.14)'; }); });
-        DROP.addEventListener('drop', function(ev) { var f = ev.dataTransfer.files[0]; if (f) loadBatchFile(f); });
-        FINPUT.addEventListener('change', function(ev) { var f = ev.target.files[0]; if (f) loadBatchFile(f); });
+        ['dragenter','dragover'].forEach(e => DROP.addEventListener(e, ev => { ev.preventDefault(); DROP.style.borderColor='var(--accent)'; }));
+        ['dragleave','drop'].forEach(e => DROP.addEventListener(e, ev => { ev.preventDefault(); DROP.style.borderColor='rgba(255,255,255,.14)'; }));
+        DROP.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if(f) loadBatchFile(f); });
+        FINPUT.addEventListener('change', ev => { const f = ev.target.files[0]; if(f) loadBatchFile(f); });
     }
+
+    // Allow Enter key in manual inputs
+    [$('m-x'), $('m-y')].forEach(el => { if(el) el.addEventListener('keydown', e => { if(e.key==='Enter') transformManual(); }); });
+
     bootstrap();
 });
 </script>
