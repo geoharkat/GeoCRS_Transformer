@@ -618,7 +618,12 @@ function updateManualOverlapBanner() {
     const outC = CRS_DB.find(c => c.code === parseInt($('m-out-crs')?.value));
     const banner = $('m-overlap-banner');
     if (!banner) return;
-    if (!inC?.bbox_w || !outC?.bbox_w) { banner.className='overlap-banner overlap-warn'; banner.innerHTML='⚠️ Extent unknown'; return; }
+    if (!inC || !outC || inC.bbox_w === undefined || outC.bbox_w === undefined
+    || isNaN(inC.bbox_w) || isNaN(outC.bbox_w)) {
+    banner.className = 'overlap-banner overlap-warn';
+    banner.innerHTML = '⚠️ Extent unknown';
+    return;
+}
     const ok = bboxOverlap(inC, outC);
     if (ok)      { banner.className='overlap-banner overlap-ok';  banner.innerHTML='✅ Shared extent — transformation is valid'; }
     else         { banner.className='overlap-banner overlap-bad'; banner.innerHTML='❌ No geographic overlap — results may be invalid'; }
