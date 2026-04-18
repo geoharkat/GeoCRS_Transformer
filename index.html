@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoCRS Transformer | Ismail Harkat</title>
+    <meta name="description" content="Transform single or batch coordinates between any EPSG system. Supports DD, DMS, DMD, Grad, and unit conversions. 100% client-side.">
+    <meta name="author" content="Ismail Harkat">
+    <meta name="theme-color" content="#0a0c13">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230a0c13'/%3E%3Cpath d='M32 8l-4 20h8L32 8zm-8 28l-12 4 12 4v-8zm16 0v8l12-4-12-4z' fill='%2300d4aa'/%3E%3C/svg%3E">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.2/proj4.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        :root{--bg:#0a0c13;--card:rgba(16,19,30,.82);--border:rgba(255,255,255,.07);--accent:#00d4aa;--accent-dim:#009e7e;--accent-glow:rgba(0,212,170,.12);--text:#e2e8f0;--muted:#6b7a94;--success:#10b981;--danger:#f05252;--warn:#f5a623}
+        *,*::before,*::after{box-sizing:border-box}
+        body{margin:0;background:var(--bg);color:var(--text);font-family:'Space Grotesk',system-ui,sans-serif;min-height:100vh;overflow-x:hidden}
+        .bg-blob{position:fixed;border-radius:50%;pointer-events:none;z-index:0;filter:blur(100px);opacity:.45}
+        .blob-1{width:600px;height:600px;top:-180px;left:-120px;background:radial-gradient(circle,rgba(0,212,170,.12),transparent 70%);animation:bf 22s ease-in-out infinite}
+        .blob-2{width:500px;height:500px;bottom:-100px;right:-100px;background:radial-gradient(circle,rgba(0,130,255,.08),transparent 70%);animation:bf 26s ease-in-out infinite reverse}
+        @keyframes bf{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-20px) scale(1.06)}66%{transform:translate(-20px,25px) scale(.95)}}
+        .card{background:var(--card);backdrop-filter:blur(18px);border:1px solid var(--border);border-radius:18px;padding:28px;position:relative;z-index:1;transition:border-color .3s,box-shadow .3s}
+        .card:hover{border-color:rgba(0,212,170,.18);box-shadow:0 0 30px rgba(0,212,170,.05)}
+        .card-title{font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:1.2px;color:var(--accent);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+        select,input[type="text"],input[type="number"]{background:rgba(6,8,16,.7);border:1px solid rgba(255,255,255,.1);border-radius:10px;color:var(--text);padding:9px 14px;font-family:inherit;font-size:14px;width:100%;transition:border-color .25s,box-shadow .25s;-webkit-appearance:none;appearance:none}
+        select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236b7a94'%3E%3Cpath d='M6 8.5L1 3.5h10z'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;padding-right:34px}
+        select:focus,input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+        .btn-primary{display:inline-flex;align-items:center;justify-content:center;gap:10px;background:linear-gradient(135deg,var(--accent),var(--accent-dim));color:#0a0c13;font-weight:700;font-size:15px;border:none;border-radius:12px;padding:14px 32px;cursor:pointer;transition:transform .15s,box-shadow .3s,opacity .3s;box-shadow:0 4px 20px rgba(0,212,170,.25);width:100%}
+        .btn-primary:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 28px rgba(0,212,170,.35)}
+        .btn-primary:active:not(:disabled){transform:translateY(0)}
+        .btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none}
+        .btn-secondary{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:rgba(255,255,255,.06);color:var(--text);font-weight:600;font-size:14px;border:1px solid rgba(255,255,255,.1);border-radius:12px;padding:12px 28px;cursor:pointer;transition:all .2s;width:100%}
+        .btn-secondary:hover{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18)}
+        .tab-btn{padding:10px 24px;font-weight:600;font-size:14px;border-radius:10px;cursor:pointer;background:transparent;color:var(--muted);border:1px solid transparent;transition:all .2s}
+        .tab-btn.active{background:rgba(0,212,170,.1);color:var(--accent);border-color:rgba(0,212,170,.2)}
+        .tab-btn:hover:not(.active){color:var(--text)}
+        .crs-details{font-size:11px;color:var(--muted);margin-top:6px;min-height:32px}
+        .crs-details b{color:var(--text);font-weight:600}
+        .swap-btn{width:48px;height:48px;border-radius:50%;background:var(--accent);color:var(--bg);display:flex;align-items:center;justify-content:center;font-size:20px;cursor:pointer;border:none;box-shadow:0 4px 15px rgba(0,212,170,.3);transition:transform .2s, box-shadow .2s; z-index:2}
+        .swap-btn:hover{transform:scale(1.1);box-shadow:0 6px 20px rgba(0,212,170,.4)}
+        #toast-container{position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px}
+        .toast{display:flex;align-items:center;gap:10px;padding:14px 20px;border-radius:12px;font-size:14px;font-weight:500;min-width:280px;backdrop-filter:blur(12px);border:1px solid var(--border);transform:translateX(120%);transition:transform .35s cubic-bezier(.22,1,.36,1),opacity .3s;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+        .toast-show{transform:translateX(0)}.toast-hide{opacity:0;transform:translateX(60px)}
+        .toast-success{background:rgba(16,185,129,.15);color:#6ee7b7;border-color:rgba(16,185,129,.2)}
+        .toast-error{background:rgba(240,82,82,.15);color:#fca5a5;border-color:rgba(240,82,82,.2)}
+        .toast-info{background:rgba(0,212,170,.12);color:#5eead4;border-color:rgba(0,212,170,.18)}
+        /* FIX: !important ensures this wins over .loader-wrap display:flex */
+        .section-hidden{display:none!important}
+        .section-reveal{animation:ru .5s cubic-bezier(.22,1,.36,1) both}
+        @keyframes ru{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+        .loader-wrap{min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;z-index:1;position:relative}
+        .spinner{width:42px;height:42px;border:3px solid rgba(0,212,170,.15);border-top-color:var(--accent);border-radius:50%;animation:spin 1s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .err-panel{max-width:620px;padding:26px;border-radius:16px;background:rgba(240,82,82,.08);border:1px solid rgba(240,82,82,.2);color:#fecaca;font-size:14px;line-height:1.6}
+        .err-panel code{background:rgba(0,0,0,.3);padding:2px 8px;border-radius:5px;color:#fbbf24;font-size:13px}
+        .err-panel h3{color:#fca5a5;font-size:16px;font-weight:700;margin:0 0 10px}
+        .err-panel .option-block{background:rgba(0,0,0,.2);border-radius:10px;padding:14px;margin-bottom:12px;border-left:3px solid var(--accent)}
+        .err-panel .option-block h4{margin:0 0 6px;color:var(--accent);font-size:14px}
+        .err-panel .option-block p{margin:4px 0}
+        .badge-count{display:inline-block;padding:2px 10px;border-radius:20px;background:rgba(0,212,170,.12);color:var(--accent);font-size:11px;font-weight:700;margin-left:6px}
+        ::-webkit-scrollbar{width:6px;height:6px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:3px}
+        @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+    </style>
+</head>
+<body>
+<div class="blob-1 bg-blob"></div><div class="blob-2 bg-blob"></div>
+<div id="toast-container" aria-live="polite"></div>
+
+<header class="relative z-10 pt-10 pb-4 text-center">
+    <h1 class="text-3xl sm:text-4xl font-bold tracking-tight">GeoCRS Transformer <span id="crs-count" class="badge-count"></span></h1>
+    <p class="mt-2 text-sm" style="color:var(--muted)">Reproject coordinates globally &middot; DMS, DD, DMD, Grad &middot; Unit Conversions</p>
+    <div class="text-xs mt-2" style="color:var(--muted)"><i class="fas fa-user-circle mr-1"></i> Built by <a href="mailto:geoharkat@gmail.com" style="color:var(--accent);font-weight:600">Ismail Harkat</a> &middot; 100% Client-Side</div>
+</header>
+
+<!-- LOADING STATE -->
+<div id="loading" class="loader-wrap">
+    <div class="spinner"></div>
+    <div style="color:var(--muted);font-size:14px">Loading CRS database...</div>
+</div>
+
+<!-- MAIN APP -->
+<main id="app" class="relative z-10 max-w-5xl mx-auto px-4 pb-16 section-hidden">
+    <!-- Mode Switcher -->
+    <div class="flex justify-center gap-3 mb-6">
+        <button class="tab-btn active" id="tab-manual" onclick="switchMode('manual')"><i class="fas fa-keyboard mr-2"></i>Manual</button>
+        <button class="tab-btn" id="tab-batch" onclick="switchMode('batch')"><i class="fas fa-file-csv mr-2"></i>Batch File</button>
+    </div>
+
+    <!-- MANUAL MODE -->
+    <div id="mode-manual" class="section-reveal">
+        <div class="flex flex-col md:flex-row items-center gap-4 md:gap-2">
+            <!-- Input CRS -->
+            <div class="card flex-1 w-full md:w-auto">
+                <div class="card-title"><i class="fas fa-sign-in-alt"></i> Input System</div>
+                <div class="space-y-3">
+                    <select id="m-in-region" onchange="onRegionChange('m-in')"><option value="">All Regions</option></select>
+                    <select id="m-in-country" onchange="filterCRS('m-in')"><option value="">All Countries</option></select>
+                    <select id="m-in-crs" onchange="updateCRSDetails('m-in')"></select>
+                    <div id="m-in-details" class="crs-details"></div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-medium" style="color:var(--muted)">X / Lon / Easting</label>
+                            <input type="text" id="m-in-x" placeholder="e.g. -105.45 or 500000">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium" style="color:var(--muted)">Y / Lat / Northing</label>
+                            <input type="text" id="m-in-y" placeholder="e.g. 40.30 or 4500000">
+                        </div>
+                    </div>
+                    <div id="m-in-format-section">
+                        <label class="text-xs font-medium" style="color:var(--muted)">Input Angular Format</label>
+                        <select id="m-in-format">
+                            <option value="AUTO">Auto-Detect</option>
+                            <option value="DD">Decimal Degrees (DD)</option>
+                            <option value="DMS">Degrees Minutes Seconds (DMS)</option>
+                            <option value="DMD">Degrees Decimal Minutes (DMD)</option>
+                            <option value="GRAD">Gradians (grad)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Swap Button -->
+            <div class="flex-shrink-0 my-2 md:my-0">
+                <button class="swap-btn" onclick="swapSystems()" title="Swap Input/Output"><i class="fas fa-exchange-alt"></i></button>
+            </div>
+
+            <!-- Output CRS -->
+            <div class="card flex-1 w-full md:w-auto">
+                <div class="card-title"><i class="fas fa-sign-out-alt"></i> Output System</div>
+                <div class="space-y-3">
+                    <select id="m-out-region" onchange="onRegionChange('m-out')"><option value="">All Regions</option></select>
+                    <select id="m-out-country" onchange="filterCRS('m-out')"><option value="">All Countries</option></select>
+                    <select id="m-out-crs" onchange="updateCRSDetails('m-out')"></select>
+                    <div id="m-out-details" class="crs-details"></div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="text-xs font-medium" style="color:var(--muted)">X / Lon / Easting</label>
+                            <input type="text" id="m-out-x" readonly style="background:rgba(0,212,170,.05);border-color:rgba(0,212,170,.2);cursor:text">
+                        </div>
+                        <div>
+                            <label class="text-xs font-medium" style="color:var(--muted)">Y / Lat / Northing</label>
+                            <input type="text" id="m-out-y" readonly style="background:rgba(0,212,170,.05);border-color:rgba(0,212,170,.2);cursor:text">
+                        </div>
+                    </div>
+                    <div id="m-out-format-section">
+                        <label class="text-xs font-medium" style="color:var(--muted)">Output Format / Units</label>
+                        <select id="m-out-format"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <button class="btn-primary" onclick="transformManual()"><i class="fas fa-bolt"></i> Transform Coordinate</button>
+        </div>
+    </div>
+
+    <!-- BATCH MODE -->
+    <div id="mode-batch" class="section-hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <!-- File Upload -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-upload"></i> 1. Input File</div>
+                <div id="drop-zone" style="border:2px dashed rgba(255,255,255,.14);border-radius:14px;padding:40px 20px;text-align:center;cursor:pointer" onclick="document.getElementById('file-input').click()">
+                    <i class="fas fa-file-csv text-3xl mb-2" style="color:var(--accent);opacity:.7"></i>
+                    <p class="text-sm font-semibold">Drop CSV / Excel here</p>
+                </div>
+                <input type="file" id="file-input" accept=".csv,.xlsx,.xls" class="hidden">
+                <div id="file-info" class="mt-3 text-xs hidden" style="color:var(--muted)"></div>
+            </div>
+
+            <!-- Batch Config -->
+            <div class="card">
+                <div class="card-title"><i class="fas fa-cogs"></i> 2. Transformation Settings</div>
+                <div class="space-y-3">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div><label class="text-xs font-medium" style="color:var(--muted)">X/Easting Col</label><select id="b-x-col"></select></div>
+                        <div><label class="text-xs font-medium" style="color:var(--muted)">Y/Northing Col</label><select id="b-y-col"></select></div>
+                    </div>
+
+                    <div style="display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--muted);font-size:11px;font-weight:700">
+                        <span style="flex:1;height:1px;background:var(--border)"></span>INPUT CRS<span style="flex:1;height:1px;background:var(--border)"></span>
+                    </div>
+
+                    <select id="b-in-mode" onchange="toggleBatchCRSMode()">
+                        <option value="global">Global System (All points same)</option>
+                        <option value="column">From Column (Per point)</option>
+                    </select>
+                    <select id="b-in-crs" class="hidden"></select>
+                    <select id="b-in-epsg-col" class="hidden"></select>
+
+                    <div style="display:flex;align-items:center;gap:8px;margin:10px 0;color:var(--muted);font-size:11px;font-weight:700">
+                        <span style="flex:1;height:1px;background:var(--border)"></span>OUTPUT CRS<span style="flex:1;height:1px;background:var(--border)"></span>
+                    </div>
+                    <select id="b-out-crs"></select>
+
+                    <div>
+                        <label class="text-xs font-medium" style="color:var(--muted)">Output Format/Units</label>
+                        <select id="b-out-format"></select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mt-5">
+            <button class="btn-primary" onclick="transformBatch()" id="btn-batch"><i class="fas fa-play"></i> Transform & Prepare Download</button>
+            <button class="btn-secondary mt-3 hidden" id="btn-download" onclick="downloadBatch()"><i class="fas fa-download"></i> Download Transformed CSV</button>
+        </div>
+    </div>
+</main>
+
+<!-- Load database via script tag — works from file:// unlike fetch() -->
+<script src="crs_database.js" onerror="window.__dbScriptFailed=true"></script>
+
+<script>
+const AUTHOR = { name: 'Ismail Harkat', email: 'geoharkat@gmail.com' };
+const $ = id => document.getElementById(id);
+const DB_URL = 'crs_database.json';
+
+/* ═══════════════════ STATE ═══════════════════ */
+let CRS_DB = [];
+let REGION_MAP = {};
+let REGIONS = [];
+
+/* ═══════════════════ BOOTSTRAP ═══════════════════ */
+proj4.defs('EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs');
+proj4.defs('EPSG:3857', '+proj=merc +a=6378137 +b=6378137 +lat_ts=0 +lon_0=0 +x_0=0 +y_0=0 +k=1 +units=m +nadgrids=@null +wktext +no_defs');
+
+async function bootstrap() {
+    // Method 1: <script> tag loaded crs_database.js (works from file://)
+    if (window.CRS_DATABASE) {
+        try {
+            ingestDatabase(window.CRS_DATABASE);
+            console.log('DB loaded via <script> tag — ' + CRS_DB.length + ' systems');
+            return;
+        } catch (err) {
+            console.error('ingestDatabase failed with script data:', err);
+            showLoadError('Error processing database: ' + err.message);
+            return;
+        }
+    }
+
+    // Method 2: fetch the JSON file (works from http://)
+    try {
+        const res = await fetch(DB_URL, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status + ' - ' + res.statusText);
+        const db = await res.json();
+        ingestDatabase(db);
+        console.log('DB loaded via fetch — ' + CRS_DB.length + ' systems');
+        return;
+    } catch (err) {
+        console.warn('fetch() failed:', err.message);
+    }
+
+    // Method 3: show error panel with manual upload fallback
+    showLoadError();
+}
+
+function ingestDatabase(db) {
+    if (!db || !Array.isArray(db.data) || !db.data.length) {
+        throw new Error('Database has no data array or it is empty.');
+    }
+    const fields = db.fields || ['code','name','region','country','datum','type','unit','proj'];
+    CRS_DB = db.data.map(function(row) {
+        const obj = {};
+        fields.forEach(function(f, i) { obj[f] = row[i]; });
+        return obj;
+    });
+
+    // Register all proj4 defs (silently skip failures)
+    let defFailures = 0;
+    CRS_DB.forEach(function(c) {
+        try { proj4.defs('EPSG:' + c.code, c.proj); }
+        catch(e) { defFailures++; }
+    });
+    if (defFailures) console.warn(defFailures + ' proj4 definitions failed to register (non-fatal)');
+
+    // Build region/country map
+    REGION_MAP = {};
+    CRS_DB.forEach(function(c) {
+        if (!REGION_MAP[c.region]) REGION_MAP[c.region] = new Set();
+        REGION_MAP[c.region].add(c.country);
+    });
+    for (var r in REGION_MAP) REGION_MAP[r] = Array.from(REGION_MAP[r]).sort();
+    REGIONS = Object.keys(REGION_MAP).sort();
+
+    // Hide loader, show app
+    $('loading').style.display = 'none';
+    $('app').classList.remove('section-hidden');
+    $('app').classList.add('section-reveal');
+    $('crs-count').textContent = CRS_DB.length + ' systems';
+
+    initUI();
+}
+
+function showLoadError(detail) {
+    $('loading').style.display = 'none';
+    $('load-error').classList.remove('section-hidden');
+    if (detail) {
+        var detailEl = document.createElement('p');
+        detailEl.innerHTML = 'Detail: <code>' + detail + '</code>';
+        detailEl.style.marginBottom = '12px';
+        var errPanel = $('load-error').querySelector('.err-panel');
+        errPanel.insertBefore(detailEl, errPanel.firstChild.nextSibling);
+    }
+    // Hook up manual file loader
+    $('manual-db-input').addEventListener('change', function(ev) {
+        var f = ev.target.files[0];
+        if (!f) return;
+        var reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                var db = JSON.parse(e.target.result);
+                if (!db.data || !db.data.length) throw new Error('No data array found');
+                $('load-error').classList.add('section-hidden');
+                ingestDatabase(db);
+                showToast('Database loaded manually (' + db.data.length + ' systems)', 'success');
+            } catch (err) {
+                showToast('Invalid JSON: ' + err.message, 'error');
+            }
+        };
+        reader.readAsText(f);
+    });
+}
+
+/* ═══════════════════ UI INITIALISATION ═══════════════════ */
+function initUI() {
+    ['m-in', 'm-out'].forEach(function(prefix) {
+        var regionSel = $(prefix + '-region');
+        regionSel.innerHTML = '<option value="">All Regions</option>' + REGIONS.map(function(r) { return '<option value="' + r + '">' + r + '</option>'; }).join('');
+        onRegionChange(prefix);
+    });
+
+    populateCRSDropdown('b-in-crs');
+    populateCRSDropdown('b-out-crs');
+    $('b-out-crs').addEventListener('change', updateBatchOutDetails);
+    updateBatchOutDetails();
+    toggleBatchCRSMode(); // initialise visibility (not just on change)
+
+    setDefaultCRS('m-in-crs', 4326);
+    setDefaultCRS('m-out-crs', 3857);
+    updateCRSDetails('m-in');
+    updateCRSDetails('m-out');
+}
+
+function setDefaultCRS(id, code) {
+    var sel = $(id);
+    for (var i = 0; i < sel.options.length; i++) {
+        if (parseInt(sel.options[i].value) === code) { sel.selectedIndex = i; return; }
+    }
+}
+
+function onRegionChange(prefix) {
+    var region = $(prefix + '-region') ? $(prefix + '-region').value : '';
+    var countrySel = $(prefix + '-country');
+
+    var countries = [];
+    if (region && REGION_MAP[region]) {
+        countries = REGION_MAP[region];
+    } else {
+        var allC = new Set();
+        Object.values(REGION_MAP).forEach(function(arr) { arr.forEach(function(c) { allC.add(c); }); });
+        countries = Array.from(allC).sort();
+    }
+
+    countrySel.innerHTML = '<option value="">All Countries</option>' + countries.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    filterCRS(prefix);
+}
+
+function filterCRS(prefix) {
+    var region = $(prefix + '-region') ? $(prefix + '-region').value : '';
+    var country = $(prefix + '-country') ? $(prefix + '-country').value : '';
+
+    var filtered = CRS_DB;
+    if (region) filtered = filtered.filter(function(c) { return c.region === region; });
+    if (country) filtered = filtered.filter(function(c) { return c.country === country; });
+
+    populateCRSDropdown(prefix + '-crs', filtered);
+    updateCRSDetails(prefix);
+}
+
+function populateCRSDropdown(id, list) {
+    list = list || CRS_DB;
+    var sel = $(id);
+    if (!sel) return;
+    var sorted = list.slice().sort(function(a, b) { return a.code - b.code; });
+    sel.innerHTML = sorted.map(function(c) { return '<option value="' + c.code + '">EPSG:' + c.code + ' \u2014 ' + c.name + ' [' + c.unit + ']</option>'; }).join('');
+}
+
+function updateCRSDetails(prefix) {
+    var code = parseInt($(prefix + '-crs') ? $(prefix + '-crs').value : '0');
+    var detailsDiv = $(prefix + '-details');
+    if (!detailsDiv || isNaN(code)) return;
+
+    var crs = CRS_DB.find(function(c) { return c.code === code; });
+    if (crs) {
+        detailsDiv.innerHTML = '<b>Name:</b> ' + crs.name + ' | <b>Datum:</b> ' + crs.datum + ' | <b>Type:</b> ' + crs.type + ' | <b>Unit:</b> ' + crs.unit;
+    } else {
+        detailsDiv.innerHTML = '<span style="color:var(--warn)">CRS not in local database. Will attempt to fetch from epsg.io.</span>';
+    }
+
+    var formatSel = $(prefix + '-format');
+    if (formatSel && prefix.indexOf('out') !== -1) {
+        var isGeo = crs && crs.type === 'Geographic';
+        if (isGeo) {
+            formatSel.innerHTML =
+                '<option value="DD">Decimal Degrees (DD)</option>' +
+                '<option value="DMS">Degrees Minutes Seconds (DMS)</option>' +
+                '<option value="DMD">Degrees Decimal Minutes (DMD)</option>' +
+                '<option value="GRAD">Gradians</option>';
+        } else {
+            var base = (crs && crs.unit) || 'm';
+            formatSel.innerHTML =
+                '<option value="1|m">Meters (m)</option>' +
+                '<option value="0.3048|ft">International Feet (ft)</option>' +
+                '<option value="0.3048006096|us-ft">US Survey Feet (us-ft)</option>' +
+                '<option value="1000|km">Kilometers (km)</option>' +
+                '<option value="1609.344|mi">Miles (mi)</option>';
+            for (var i = 0; i < formatSel.options.length; i++) {
+                if (formatSel.options[i].value.endsWith('|' + base)) { formatSel.selectedIndex = i; break; }
+            }
+        }
+    }
+}
+
+function updateBatchOutDetails() {
+    var code = parseInt($('b-out-crs') ? $('b-out-crs').value : '0');
+    var formatSel = $('b-out-format');
+    var crs = CRS_DB.find(function(c) { return c.code === code; });
+
+    if (crs && formatSel) {
+        var isGeo = crs.type === 'Geographic';
+        if (isGeo) {
+            formatSel.innerHTML =
+                '<option value="DD">Decimal Degrees (DD)</option>' +
+                '<option value="DMS">Degrees Minutes Seconds (DMS)</option>' +
+                '<option value="DMD">Degrees Decimal Minutes (DMD)</option>' +
+                '<option value="GRAD">Gradians</option>';
+        } else {
+            var base = crs.unit || 'm';
+            formatSel.innerHTML =
+                '<option value="1|m">Meters (m)</option>' +
+                '<option value="0.3048|ft">International Feet (ft)</option>' +
+                '<option value="0.3048006096|us-ft">US Survey Feet (us-ft)</option>' +
+                '<option value="1000|km">Kilometers (km)</option>' +
+                '<option value="1609.344|mi">Miles (mi)</option>';
+            for (var i = 0; i < formatSel.options.length; i++) {
+                if (formatSel.options[i].value.endsWith('|' + base)) { formatSel.selectedIndex = i; break; }
+            }
+        }
+    }
+}
+
+/* ═══════════════════ PARSING & FORMATTING ═══════════════════ */
+function parseAngle(val, formatHint) {
+    formatHint = formatHint || 'AUTO';
+    if (typeof val !== 'string') val = String(val);
+    val = val.trim().replace(/\s+/g, ' ');
+
+    var sign = 1;
+    if (/[SW-]/i.test(val)) sign = -1;
+    val = val.replace(/[NSEW]/gi, '').replace(/-/g, '').trim();
+
+    if (formatHint === 'GRAD') {
+        return (parseFloat(val) * 0.9) * sign;
+    }
+
+    // Explicit DD hint, or AUTO with a plain decimal/integer (no separator
+    // characters) — parse directly as a float.  This prevents the DMS regex
+    // from backtracking through e.g. "6.05" and mis-reading it as 6°0′5″.
+    if (formatHint === 'DD' || (formatHint === 'AUTO' && /^\d+(\.\d+)?°?$/.test(val))) {
+        return parseFloat(val) * sign;
+    }
+
+    var dmsRegex = /^(\d+\.?\d*)[°d]?\s*(\d+\.?\d*)['m]?\s*(\d+\.?\d*)["s]?/i;
+    var dmdRegex = /^(\d+\.?\d*)[°d]?\s*(\d+\.?\d*)['m]?/i;
+    var ddRegex = /^(\d+\.?\d*)[°d]?/i;
+    var match;
+
+    if (formatHint === 'DMS' && (match = val.match(dmsRegex))) {
+        return (parseFloat(match[1]) + parseFloat(match[2]) / 60 + parseFloat(match[3]) / 3600) * sign;
+    }
+    if (formatHint === 'DMD' && (match = val.match(dmdRegex))) {
+        return (parseFloat(match[1]) + parseFloat(match[2]) / 60) * sign;
+    }
+
+    // AUTO: only trigger DMS/DMD detection when genuine separator characters
+    // are present.  A plain "6.05" must never be split into 6°0′5″.
+    if ((match = val.match(dmsRegex)) && (val.indexOf('"') !== -1 || val.indexOf('s') !== -1 || (match[2] && match[3] && parseFloat(match[2]) < 60 && parseFloat(match[3]) < 60 && /[°d\s'"]/.test(val)))) {
+        return (parseFloat(match[1]) + parseFloat(match[2]) / 60 + parseFloat(match[3]) / 3600) * sign;
+    }
+    if ((match = val.match(dmdRegex)) && (val.indexOf("'") !== -1 || val.indexOf('m') !== -1) && parseFloat(match[2]) < 60) {
+        return (parseFloat(match[1]) + parseFloat(match[2]) / 60) * sign;
+    }
+
+    match = val.match(ddRegex);
+    if (match) return parseFloat(match[1]) * sign;
+
+    return NaN;
+}
+
+function formatAngle(dd, format) {
+    if (isNaN(dd)) return 'Invalid';
+    var sign = dd < 0 ? -1 : 1;
+    dd = Math.abs(dd);
+
+    if (format === 'GRAD') return ((sign < 0 ? '-' : '') + (dd / 0.9).toFixed(6) + ' grad');
+
+    var d = Math.floor(dd);
+    var mFull = (dd - d) * 60;
+
+    if (format === 'DMD') {
+        return (sign < 0 ? '-' : '') + d + '\u00B0 ' + mFull.toFixed(4) + "'";
+    }
+
+    if (format === 'DMS') {
+        var m = Math.floor(mFull);
+        var s = (mFull - m) * 60;
+        return (sign < 0 ? '-' : '') + d + '\u00B0 ' + m + "' " + s.toFixed(2) + '"';
+    }
+
+    return (sign < 0 ? '-' : '') + dd.toFixed(8) + '\u00B0';
+}
+
+function convertLength(val, factor) { return val * factor; }
+
+/* ═══════════════════ EPSG.IO FALLBACK ═══════════════════ */
+async function fetchEpsgDef(code) {
+    try { proj4('EPSG:' + code); return 'EPSG:' + code; } catch (e) {}
+    try {
+        var r = await fetch('https://epsg.io/' + code + '.proj4');
+        if (!r.ok) throw new Error('Not found');
+        var d = await r.text();
+        proj4.defs('EPSG:' + code, d.trim());
+        return 'EPSG:' + code;
+    } catch (e) {
+        throw new Error('EPSG:' + code + ' unavailable.');
+    }
+}
+
+/* ═══════════════════ CORE TRANSFORMATION ═══════════════════ */
+async function transformPoint(x, y, inCode, outCode, inFormat, outFormatStr) {
+    var inCRS = CRS_DB.find(function(c) { return c.code === inCode; }) || { type: 'Unknown', unit: 'Unknown' };
+    var outCRS = CRS_DB.find(function(c) { return c.code === outCode; }) || { type: 'Unknown', unit: 'Unknown' };
+
+    var pX = x, pY = y;
+    if (inCRS.type === 'Geographic') {
+        pX = parseAngle(x, inFormat);
+        pY = parseAngle(y, inFormat);
+    } else {
+        pX = parseFloat(x);
+        pY = parseFloat(y);
+    }
+
+    if (isNaN(pX) || isNaN(pY)) throw new Error('Invalid coordinate values provided.');
+
+    // Identity short-circuit: same CRS in and out — skip proj4 to avoid
+    // datum-shift round-trip errors (e.g. EPSG:4307 Nord Sahara drift).
+    var outX, outY;
+    if (inCode === outCode) {
+        outX = pX;
+        outY = pY;
+    } else {
+        var fromStr = await fetchEpsgDef(inCode);
+        var toStr   = await fetchEpsgDef(outCode);
+        var result  = proj4(fromStr, toStr, [pX, pY]);
+        outX = result[0];
+        outY = result[1];
+    }
+
+    if (isNaN(outX) || isNaN(outY)) throw new Error('Transformation produced invalid coordinates. Check that input values are within the valid extent of EPSG:' + inCode + '.');
+
+    if (outCRS.type === 'Geographic') {
+        outX = formatAngle(outX, outFormatStr);
+        outY = formatAngle(outY, outFormatStr);
+    } else {
+        var parts = outFormatStr.split('|');
+        var factor = parseFloat(parts[0]);
+        var unitName = parts[1];
+        outX = convertLength(outX, factor).toFixed(3) + ' ' + unitName;
+        outY = convertLength(outY, factor).toFixed(3) + ' ' + unitName;
+    }
+
+    return { x: outX, y: outY };
+}
+
+/* ═══════════════════ MANUAL MODE ═══════════════════ */
+async function transformManual() {
+    var inCode = parseInt($('m-in-crs').value);
+    var outCode = parseInt($('m-out-crs').value);
+    var inX = $('m-in-x').value;
+    var inY = $('m-in-y').value;
+    var inFormat = $('m-in-format').value;
+    var outFormat = $('m-out-format').value;
+
+    if (!inX.trim() || !inY.trim()) return showToast('Please enter X and Y coordinates', 'error');
+
+    $('m-out-x').value = 'Transforming...';
+    $('m-out-y').value = 'Transforming...';
+
+    try {
+        var res = await transformPoint(inX, inY, inCode, outCode, inFormat, outFormat);
+        $('m-out-x').value = res.x;
+        $('m-out-y').value = res.y;
+        showToast('Coordinate transformed successfully!', 'success');
+    } catch(e) {
+        $('m-out-x').value = 'Error';
+        $('m-out-y').value = 'Error';
+        showToast(e.message, 'error');
+    }
+}
+
+function swapSystems() {
+    var inCrs = $('m-in-crs').value;
+    var outCrs = $('m-out-crs').value;
+    var inReg = $('m-in-region').value;
+    var outReg = $('m-out-region').value;
+    var inCtry = $('m-in-country').value;
+    var outCtry = $('m-out-country').value;
+
+    $('m-in-region').value = outReg;
+    $('m-out-region').value = inReg;
+    onRegionChange('m-in');
+    onRegionChange('m-out');
+    $('m-in-country').value = outCtry;
+    $('m-out-country').value = inCtry;
+    filterCRS('m-in');
+    filterCRS('m-out');
+
+    $('m-in-crs').value = outCrs;
+    $('m-out-crs').value = inCrs;
+    updateCRSDetails('m-in');
+    updateCRSDetails('m-out');
+}
+
+/* ═══════════════════ BATCH MODE ═══════════════════ */
+var batchData = null;
+var batchColumns = [];
+var transformedCSV = '';
+
+function switchMode(mode) {
+    $('mode-manual').classList.toggle('section-hidden', mode !== 'manual');
+    $('mode-manual').classList.toggle('section-reveal', mode === 'manual');
+    $('mode-batch').classList.toggle('section-hidden', mode !== 'batch');
+    $('mode-batch').classList.toggle('section-reveal', mode === 'batch');
+    $('tab-manual').classList.toggle('active', mode === 'manual');
+    $('tab-batch').classList.toggle('active', mode === 'batch');
+}
+
+function loadBatchFile(file) {
+    var ext = file.name.split('.').pop().toLowerCase();
+    $('file-info').innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Loading...';
+    $('file-info').classList.remove('hidden');
+
+    if (ext === 'csv') {
+        Papa.parse(file, { header: true, dynamicTyping: true, skipEmptyLines: true, complete: function(res) { dataReady(res.data); } });
+    } else {
+        var r = new FileReader();
+        r.onload = function(e) {
+            var wb = XLSX.read(e.target.result, { type: 'array' });
+            dataReady(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' }));
+        };
+        r.readAsArrayBuffer(file);
+    }
+}
+
+function dataReady(data) {
+    if (!data.length) return showToast('File is empty', 'error');
+    batchData = data;
+    batchColumns = Object.keys(data[0]);
+    $('file-info').innerHTML = '<i class="fas fa-check-circle mr-1" style="color:var(--success)"></i> Loaded ' + data.length + ' rows';
+
+    var colOpts = batchColumns.map(function(c) { return '<option value="' + c + '">' + c + '</option>'; }).join('');
+    $('b-x-col').innerHTML = colOpts;
+    $('b-y-col').innerHTML = colOpts;
+    $('b-in-epsg-col').innerHTML = colOpts;
+
+    // Default Y to 2nd column and EPSG to 3rd so they don't all start on col 0.
+    // Users can still override via the dropdowns.
+    if (batchColumns.length > 1) $('b-y-col').selectedIndex = 1;
+    if (batchColumns.length > 2) $('b-in-epsg-col').selectedIndex = 2;
+}
+
+function toggleBatchCRSMode() {
+    var isGlobal = $('b-in-mode').value === 'global';
+    $('b-in-crs').classList.toggle('hidden', !isGlobal);
+    $('b-in-epsg-col').classList.toggle('hidden', isGlobal);
+}
+
+async function transformBatch() {
+    if (!batchData) return showToast('Load a file first', 'error');
+    var btn = $('btn-batch');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+
+    try {
+        var xCol = $('b-x-col').value;
+        var yCol = $('b-y-col').value;
+        var outCode = parseInt($('b-out-crs').value);
+        var outFormat = $('b-out-format').value;
+        var isGlobal = $('b-in-mode').value === 'global';
+        var globalInCode = parseInt($('b-in-crs').value);
+        var epsgCol = $('b-in-epsg-col').value;
+
+        var outXCol = 'Out_X';
+        var outYCol = 'Out_Y';
+
+        for (var i = 0; i < batchData.length; i++) {
+            var row = batchData[i];
+            try {
+                var inCode = isGlobal ? globalInCode : parseInt(String(row[epsgCol]).match(/\d+/)[0]);
+                var res = await transformPoint(row[xCol], row[yCol], inCode, outCode, 'AUTO', outFormat);
+                row[outXCol] = res.x;
+                row[outYCol] = res.y;
+            } catch(e) {
+                row[outXCol] = 'Error';
+                row[outYCol] = 'Error';
+            }
+        }
+
+        transformedCSV = Papa.unparse(batchData);
+        $('btn-download').classList.remove('hidden');
+        showToast('Batch transformation complete!', 'success');
+
+    } catch(e) {
+        showToast('Batch error: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-play"></i> Transform & Prepare Download';
+    }
+}
+
+function downloadBatch() {
+    var blob = new Blob([transformedCSV], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'transformed_coordinates.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('CSV Downloaded', 'success');
+}
+
+/* ═══════════════════ TOAST ═══════════════════ */
+function showToast(msg, type, dur) {
+    type = type || 'info';
+    dur = dur || 4000;
+    var c = $('toast-container'), t = document.createElement('div');
+    t.className = 'toast toast-' + type;
+    var icons = { success: 'fa-check-circle', error: 'fa-times-circle', info: 'fa-info-circle' };
+    t.innerHTML = '<i class="fas ' + (icons[type] || icons.info) + '"></i><span>' + msg + '</span>';
+    c.appendChild(t);
+    requestAnimationFrame(function() { requestAnimationFrame(function() { t.classList.add('toast-show'); }); });
+    setTimeout(function() { t.classList.remove('toast-show'); t.classList.add('toast-hide'); setTimeout(function() { t.remove(); }, 350); }, dur);
+}
+
+/* ═══════════════════ FILE DROP WIRING ═══════════════════ */
+document.addEventListener('DOMContentLoaded', function() {
+    var DROP = $('drop-zone'), FINPUT = $('file-input');
+    if (DROP && FINPUT) {
+        ['dragenter', 'dragover'].forEach(function(e) { DROP.addEventListener(e, function(ev) { ev.preventDefault(); DROP.style.borderColor = 'var(--accent)'; }); });
+        ['dragleave', 'drop'].forEach(function(e) { DROP.addEventListener(e, function(ev) { ev.preventDefault(); DROP.style.borderColor = 'rgba(255,255,255,.14)'; }); });
+        DROP.addEventListener('drop', function(ev) { var f = ev.dataTransfer.files[0]; if (f) loadBatchFile(f); });
+        FINPUT.addEventListener('change', function(ev) { var f = ev.target.files[0]; if (f) loadBatchFile(f); });
+    }
+    bootstrap();
+});
+</script>
+</body>
+</html>
